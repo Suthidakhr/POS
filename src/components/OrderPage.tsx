@@ -18,7 +18,7 @@ interface Props {
       memberId?: string
       memberDiscount: number
     }
-  ) => Order
+  ) => Promise<Order>
   onFindMember: (phone: string) => Member | undefined
 }
 
@@ -31,6 +31,8 @@ export default function OrderPage({ menuItems, cart, onAddToCart, onUpdateCartIt
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'qr'>('cash')
   const [showSuccess, setShowSuccess] = useState(false)
   const [lastOrder, setLastOrder] = useState<Order | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   // Member lookup
   const [memberPhone, setMemberPhone] = useState('')
@@ -72,26 +74,34 @@ export default function OrderPage({ menuItems, cart, onAddToCart, onUpdateCartIt
     setCustomerName('')
   }
 
-  const handlePlaceOrder = () => {
-    if (cart.length === 0) return
-    const order = onPlaceOrder(cart, {
-      tableNumber: tableNumber ? Number(tableNumber) : undefined,
-      customerName: customerName || undefined,
-      discount: manualDiscountAmt,
-      paymentMethod,
-      memberId: activeMember?.id,
-      memberDiscount: memberDiscountAmt,
-    })
-    setLastOrder(order)
-    setShowSuccess(true)
-    setTableNumber('')
-    setCustomerName('')
-    setDiscount('')
-    setPaymentMethod('cash')
-    setActiveMember(null)
-    setMemberPhone('')
-    setMemberNotFound(false)
-    setTimeout(() => setShowSuccess(false), 3500)
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0 || submitting) return
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      const order = await onPlaceOrder(cart, {
+        tableNumber: tableNumber ? Number(tableNumber) : undefined,
+        customerName: customerName || undefined,
+        discount: manualDiscountAmt,
+        paymentMethod,
+        memberId: activeMember?.id,
+        memberDiscount: memberDiscountAmt,
+      })
+      setLastOrder(order)
+      setShowSuccess(true)
+      setTableNumber('')
+      setCustomerName('')
+      setDiscount('')
+      setPaymentMethod('cash')
+      setActiveMember(null)
+      setMemberPhone('')
+      setMemberNotFound(false)
+      setTimeout(() => setShowSuccess(false), 3500)
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to place order')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -301,17 +311,26 @@ export default function OrderPage({ menuItems, cart, onAddToCart, onUpdateCartIt
             <span>Total</span><span>฿{total.toFixed(0)}</span>
           </div>
 
+          {submitError && (
+            <div style={{
+              fontSize: 12, color: '#ff4d4f', background: '#fff2f0',
+              border: '1px solid #ffccc7', borderRadius: 8,
+              padding: '8px 12px', marginBottom: 8,
+            }}>
+              {submitError}
+            </div>
+          )}
           <button
             onClick={handlePlaceOrder}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || submitting}
             style={{
               width: '100%', padding: '13px', borderRadius: 10,
-              background: cart.length === 0 ? '#e0e0e0' : '#E8B634',
-              color: cart.length === 0 ? '#aaa' : '#fff',
+              background: cart.length === 0 || submitting ? '#e0e0e0' : '#E8B634',
+              color: cart.length === 0 || submitting ? '#aaa' : '#fff',
               fontSize: 15, fontWeight: 700, transition: 'all 0.2s',
             }}
           >
-            Place Order
+            {submitting ? 'Placing…' : 'Place Order'}
           </button>
         </div>
       </div>

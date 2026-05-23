@@ -3,8 +3,8 @@ import { Order, OrderStatus } from '../types'
 
 interface Props {
   orders: Order[]
-  onUpdateStatus: (id: string, status: OrderStatus) => void
-  onDeleteOrder: (id: string) => void
+  onUpdateStatus: (id: string, status: OrderStatus) => Promise<void>
+  onDeleteOrder: (id: string) => Promise<void>
 }
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string; next?: OrderStatus; nextLabel?: string }> = {
@@ -35,6 +35,7 @@ function elapsed(d: Date) {
 export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder }: Props) {
   const [activeTab, setActiveTab] = useState('active')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const tab = tabs.find(t => t.id === activeTab)!
   const filtered = orders.filter(o => tab.statuses.includes(o.status))
@@ -151,18 +152,26 @@ export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder 
                   }}>
                     {cfg.next && (
                       <button
-                        onClick={() => onUpdateStatus(order.id, cfg.next!)}
+                        disabled={busyId === order.id}
+                        onClick={async () => {
+                          setBusyId(order.id)
+                          await onUpdateStatus(order.id, cfg.next!).finally(() => setBusyId(null))
+                        }}
                         style={{
                           flex: 1, padding: '8px', borderRadius: 8,
-                          background: '#758650', color: '#fff',
-                          fontSize: 13, fontWeight: 600,
+                          background: busyId === order.id ? '#aaa' : '#758650',
+                          color: '#fff', fontSize: 13, fontWeight: 600,
                         }}
                       >
-                        {cfg.nextLabel}
+                        {busyId === order.id ? '…' : cfg.nextLabel}
                       </button>
                     )}
                     <button
-                      onClick={() => onUpdateStatus(order.id, 'cancelled')}
+                      disabled={busyId === order.id}
+                      onClick={async () => {
+                        setBusyId(order.id)
+                        await onUpdateStatus(order.id, 'cancelled').finally(() => setBusyId(null))
+                      }}
                       style={{
                         padding: '8px 14px', borderRadius: 8,
                         background: '#f8f8f8', color: '#C9B6A1',
@@ -176,12 +185,16 @@ export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder 
                 {(order.status === 'completed' || order.status === 'cancelled') && (
                   <div style={{ padding: '10px 18px', borderTop: '1px solid #f8f8f8' }}>
                     <button
-                      onClick={() => onDeleteOrder(order.id)}
+                      disabled={busyId === order.id}
+                      onClick={async () => {
+                        setBusyId(order.id)
+                        await onDeleteOrder(order.id).finally(() => setBusyId(null))
+                      }}
                       style={{
                         fontSize: 12, color: '#C9B6A1', background: 'none', textDecoration: 'underline'
                       }}
                     >
-                      Remove
+                      {busyId === order.id ? 'Removing…' : 'Remove'}
                     </button>
                   </div>
                 )}

@@ -3,8 +3,8 @@ import { Member } from '../types'
 
 interface Props {
   members: Member[]
-  onAddMember: (m: Omit<Member, 'id' | 'joinedAt' | 'totalSpent' | 'totalOrders'>) => Member
-  onDeleteMember: (id: string) => void
+  onAddMember: (m: Omit<Member, 'id' | 'joinedAt' | 'totalSpent' | 'totalOrders'>) => Promise<Member>
+  onDeleteMember: (id: string) => Promise<void>
 }
 
 function formatDate(d: Date) {
@@ -20,6 +20,8 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [successName, setSuccessName] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const filtered = members.filter(m =>
     m.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -34,15 +36,23 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
     return e
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const e = validate()
     if (Object.keys(e).length > 0) { setErrors(e); return }
-    const newMember = onAddMember({ name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim() || undefined })
-    setSuccessName(newMember.name)
-    setForm(emptyForm)
-    setErrors({})
-    setShowForm(false)
-    setTimeout(() => setSuccessName(null), 3000)
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      const newMember = await onAddMember({ name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim() || undefined })
+      setSuccessName(newMember.name)
+      setForm(emptyForm)
+      setErrors({})
+      setShowForm(false)
+      setTimeout(() => setSuccessName(null), 3000)
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Registration failed')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -153,16 +163,25 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
               🎁 This member will receive <strong>10% discount</strong> on every order automatically.
             </div>
 
+            {submitError && (
+              <div style={{
+                fontSize: 12, color: '#ff4d4f', background: '#fff2f0',
+                border: '1px solid #ffccc7', borderRadius: 8, padding: '8px 12px', marginBottom: 12,
+              }}>{submitError}</div>
+            )}
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={handleSubmit}
+                disabled={submitting}
                 style={{
-                  padding: '10px 24px', borderRadius: 10, background: '#758650',
+                  padding: '10px 24px', borderRadius: 10,
+                  background: submitting ? '#aaa' : '#758650',
                   color: '#fff', fontWeight: 700, fontSize: 14,
                 }}
-              >Register</button>
+              >{submitting ? 'Registering…' : 'Register'}</button>
               <button
-                onClick={() => { setShowForm(false); setForm(emptyForm); setErrors({}) }}
+                onClick={() => { setShowForm(false); setForm(emptyForm); setErrors({}); setSubmitError(null) }}
+                disabled={submitting}
                 style={{ padding: '10px 20px', borderRadius: 10, background: '#f0f0f0', color: '#888', fontSize: 14 }}
               >Cancel</button>
             </div>
@@ -195,7 +214,7 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
                 member={member}
                 confirmDelete={confirmDelete}
                 onDelete={() => setConfirmDelete(member.id)}
-                onConfirmDelete={() => { onDeleteMember(member.id); setConfirmDelete(null) }}
+                onConfirmDelete={async () => { await onDeleteMember(member.id); setConfirmDelete(null) }}
                 onCancelDelete={() => setConfirmDelete(null)}
               />
             ))}

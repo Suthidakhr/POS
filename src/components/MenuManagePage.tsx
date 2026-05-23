@@ -4,9 +4,9 @@ import { categories } from '../data/menu'
 
 interface Props {
   menuItems: MenuItem[]
-  onUpdateItem: (item: MenuItem) => void
-  onAddItem: (item: MenuItem) => void
-  onDeleteItem: (id: string) => void
+  onUpdateItem: (item: MenuItem) => Promise<void>
+  onAddItem: (item: Omit<MenuItem, 'id'>) => Promise<void>
+  onDeleteItem: (id: string) => Promise<void>
 }
 
 const emptyItem = (): Omit<MenuItem, 'id'> => ({
@@ -20,6 +20,8 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
   const [newItem, setNewItem] = useState(emptyItem())
   const [search, setSearch] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const filtered = menuItems.filter(m => {
     const catMatch = selectedCategory === 'all' || m.category === selectedCategory
@@ -27,15 +29,33 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
     return catMatch && searchMatch
   })
 
-  const handleSaveEdit = () => {
-    if (editingItem) { onUpdateItem(editingItem); setEditingItem(null) }
+  const handleSaveEdit = async () => {
+    if (!editingItem || busy) return
+    setBusy(true)
+    setFormError(null)
+    try {
+      await onUpdateItem(editingItem)
+      setEditingItem(null)
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Save failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const handleAddNew = () => {
-    if (!newItem.name.trim()) return
-    onAddItem({ ...newItem, id: Math.random().toString(36).slice(2, 9) })
-    setNewItem(emptyItem())
-    setAddingNew(false)
+  const handleAddNew = async () => {
+    if (!newItem.name.trim() || busy) return
+    setBusy(true)
+    setFormError(null)
+    try {
+      await onAddItem(newItem)
+      setNewItem(emptyItem())
+      setAddingNew(false)
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Add failed')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -90,8 +110,10 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
             item={newItem as MenuItem}
             onChange={v => setNewItem(v as Omit<MenuItem, 'id'>)}
             onSave={handleAddNew}
-            onCancel={() => { setAddingNew(false); setNewItem(emptyItem()) }}
+            onCancel={() => { setAddingNew(false); setNewItem(emptyItem()); setFormError(null) }}
             isNew
+            busy={busy}
+            error={formError}
           />
         )}
 
@@ -118,7 +140,9 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
                     item={editingItem}
                     onChange={v => setEditingItem(v as MenuItem)}
                     onSave={handleSaveEdit}
-                    onCancel={() => setEditingItem(null)}
+                    onCancel={() => { setEditingItem(null); setFormError(null) }}
+                    busy={busy}
+                    error={formError}
                   />
                 </div>
               ) : (
@@ -148,12 +172,15 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
                   </button>
                   <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                     <button
-                      onClick={() => { setEditingItem({ ...item }); setAddingNew(false) }}
+                      onClick={() => { setEditingItem({ ...item }); setAddingNew(false); setFormError(null) }}
                       style={{ padding: '5px 10px', borderRadius: 7, background: '#FFE27C', color: '#5a4000', fontSize: 12, fontWeight: 600 }}
                     >Edit</button>
                     {confirmDelete === item.id ? (
                       <>
-                        <button onClick={() => { onDeleteItem(item.id); setConfirmDelete(null) }}
+                        <button onClick={async () => {
+                          await onDeleteItem(item.id)
+                          setConfirmDelete(null)
+                        }}
                           style={{ padding: '5px 8px', borderRadius: 7, background: '#ff4d4f', color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</button>
                         <button onClick={() => setConfirmDelete(null)}
                           style={{ padding: '5px 8px', borderRadius: 7, background: '#f0f0f0', color: '#888', fontSize: 11 }}>✗</button>
@@ -177,13 +204,15 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
 }
 
 function ItemForm({
-  item, onChange, onSave, onCancel, isNew
+  item, onChange, onSave, onCancel, isNew, busy, error
 }: {
   item: MenuItem | Omit<MenuItem, 'id'>
   onChange: (v: MenuItem | Omit<MenuItem, 'id'>) => void
   onSave: () => void
   onCancel: () => void
   isNew?: boolean
+  busy?: boolean
+  error?: string | null
 }) {
   const cats: Category[] = ['coffee', 'tea', 'smoothie', 'food', 'bakery']
   const emojis = ['☕', '🍵', '🧋', '🥤', '🍫', '🥭', '🫐', '🍌', '🥑', '🍳', '🥐', '🥪', '🍋', '🌀', '🍽️', '🫙', '🥗', '🌼', '🫖', '🧊']
@@ -240,13 +269,21 @@ function ItemForm({
           ))}
         </div>
       </div>
+      {error && (
+        <div style={{
+          fontSize: 12, color: '#ff4d4f', background: '#fff2f0',
+          border: '1px solid #ffccc7', borderRadius: 8, padding: '8px 12px', marginBottom: 10,
+        }}>{error}</div>
+      )}
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={onSave} style={{
-          padding: '9px 20px', borderRadius: 9, background: '#758650', color: '#fff', fontWeight: 700, fontSize: 13,
+        <button onClick={onSave} disabled={busy} style={{
+          padding: '9px 20px', borderRadius: 9,
+          background: busy ? '#aaa' : '#758650',
+          color: '#fff', fontWeight: 700, fontSize: 13,
         }}>
-          {isNew ? 'Add Item' : 'Save Changes'}
+          {busy ? 'Saving…' : isNew ? 'Add Item' : 'Save Changes'}
         </button>
-        <button onClick={onCancel} style={{
+        <button onClick={onCancel} disabled={busy} style={{
           padding: '9px 20px', borderRadius: 9, background: '#f0f0f0', color: '#888', fontSize: 13,
         }}>Cancel</button>
       </div>
