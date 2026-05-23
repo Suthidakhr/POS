@@ -1,82 +1,92 @@
-import { useState, useCallback } from 'react'
-import { Order, OrderItem, OrderStatus, Page, MenuItem, Member } from './types'
-import { menuItems } from './data/menu'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { Order, OrderItem, OrderStatus, Page, MenuItem, Member, AuthUser } from './types'
+import * as api from './api'
 import Sidebar from './components/Sidebar'
 import OrderPage from './components/OrderPage'
 import ManageOrderPage from './components/ManageOrderPage'
 import MenuManagePage from './components/MenuManagePage'
 import SummaryPage from './components/SummaryPage'
 import MembershipPage from './components/MembershipPage'
+import SettingsPage from './components/SettingsPage'
+import LoginPage from './components/LoginPage'
 
-let orderCounter = 5
-
-// ── Seed data ──────────────────────────────────────────────────────────────
-const SEED_MEMBERS: Member[] = [
-  { id: 'mb1', name: 'Suthida K.',   phone: '0812345678', email: 'suthida@email.com',  joinedAt: new Date('2026-03-15'), totalOrders: 1, totalSpent: 226 },
-  { id: 'mb2', name: 'Thanakorn P.', phone: '0898765432',                               joinedAt: new Date('2026-04-02'), totalOrders: 1, totalSpent: 303 },
-  { id: 'mb3', name: 'Maneerat W.',  phone: '0861234567', email: 'maneerat@email.com', joinedAt: new Date('2026-05-10'), totalOrders: 1, totalSpent: 260 },
-]
-
-const m = menuItems
-const SEED_ORDERS: Order[] = [
-  {
-    id: 'o1', orderNumber: 1, status: 'completed', paymentMethod: 'cash',
-    tableNumber: 3, customerName: 'Suthida K.', memberId: 'mb1',
-    createdAt: new Date('2026-05-23T09:15:00'), completedAt: new Date('2026-05-23T09:38:00'),
-    items: [
-      { menuItem: m.find(x => x.id === 'c3')!, quantity: 1 },
-      { menuItem: m.find(x => x.id === 'c4')!, quantity: 1 },
-      { menuItem: m.find(x => x.id === 'b1')!, quantity: 1 },
-    ],
-    discount: 0, memberDiscount: 24, tax: 15, total: 226,
-  },
-  {
-    id: 'o2', orderNumber: 2, status: 'ready', paymentMethod: 'card',
-    tableNumber: 5, customerName: 'Thanakorn P.', memberId: 'mb2',
-    createdAt: new Date('2026-05-23T10:22:00'),
-    items: [
-      { menuItem: m.find(x => x.id === 'c6')!, quantity: 1 },
-      { menuItem: m.find(x => x.id === 'f1')!, quantity: 1 },
-      { menuItem: m.find(x => x.id === 'b2')!, quantity: 1 },
-    ],
-    discount: 0, memberDiscount: 32, tax: 20, total: 303,
-  },
-  {
-    id: 'o3', orderNumber: 3, status: 'preparing', paymentMethod: 'qr',
-    tableNumber: 2, customerName: 'Maneerat W.', memberId: 'mb3',
-    createdAt: new Date('2026-05-23T10:45:00'),
-    items: [
-      { menuItem: m.find(x => x.id === 't1')!, quantity: 1 },
-      { menuItem: m.find(x => x.id === 't3')!, quantity: 1 },
-      { menuItem: m.find(x => x.id === 'f5')!, quantity: 1 },
-    ],
-    discount: 0, memberDiscount: 27, tax: 17, total: 260,
-  },
-  {
-    id: 'o4', orderNumber: 4, status: 'pending', paymentMethod: 'cash',
-    tableNumber: 1, customerName: 'Walk-in',
-    createdAt: new Date('2026-05-23T11:02:00'),
-    items: [
-      { menuItem: m.find(x => x.id === 'c2')!, quantity: 1 },
-      { menuItem: m.find(x => x.id === 'c8')!, quantity: 1 },
-      { menuItem: m.find(x => x.id === 'b4')!, quantity: 1 },
-      { menuItem: m.find(x => x.id === 'b5')!, quantity: 1 },
-    ],
-    discount: 0, memberDiscount: 0, tax: 23, total: 358,
-  },
-]
-// ───────────────────────────────────────────────────────────────────────────
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 9)
-}
+const CASHIER_PAGES: Page[] = ['order', 'manage']
 
 export default function App() {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+
   const [page, setPage] = useState<Page>('order')
-  const [orders, setOrders] = useState<Order[]>(SEED_ORDERS)
+  const [orders, setOrders] = useState<Order[]>([])
   const [cart, setCart] = useState<OrderItem[]>([])
-  const [managedMenu, setManagedMenu] = useState<MenuItem[]>(menuItems)
-  const [members, setMembers] = useState<Member[]>(SEED_MEMBERS)
+  const [managedMenu, setManagedMenu] = useState<MenuItem[]>([])
+  const [members, setMembers] = useState<Member[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function showToast(msg: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToast(msg)
+    toastTimer.current = setTimeout(() => setToast(null), 3000)
+  }
+
+  function navigate(p: Page) {
+    if (authUser?.role === 'cashier' && !CASHIER_PAGES.includes(p)) {
+      showToast('Access restricted')
+      return
+    }
+    setPage(p)
+  }
+
+  async function loadData() {
+    setLoading(true)
+    setError(null)
+    try {
+      const [menu, fetchedOrders, fetchedMembers] = await Promise.all([
+        api.fetchMenu(), api.fetchOrders(), api.fetchMembers()
+      ])
+      setManagedMenu(menu)
+      setOrders(fetchedOrders)
+      setMembers(fetchedMembers)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Check for existing session on mount
+  useEffect(() => {
+    api.getMe()
+      .then(user => {
+        setAuthUser(user)
+        setAuthChecked(true)
+        return loadData()
+      })
+      .catch(() => {
+        setAuthChecked(true)
+      })
+  }, [])
+
+  async function handleLogin(user: AuthUser) {
+    setAuthUser(user)
+    setPage('order')
+    await loadData()
+  }
+
+  async function handleLogout() {
+    try { await api.logout() } catch { /* ignore */ }
+    setAuthUser(null)
+    setOrders([])
+    setManagedMenu([])
+    setMembers([])
+    setCart([])
+    setPage('order')
+  }
+
+  // ─── Cart & order handlers ─────────────────────────────────────────────────
 
   const addToCart = useCallback((item: MenuItem) => {
     setCart(prev => {
@@ -95,31 +105,27 @@ export default function App() {
 
   const clearCart = useCallback(() => setCart([]), [])
 
-  const placeOrder = useCallback((
+  const placeOrder = useCallback(async (
     items: OrderItem[],
     opts: { tableNumber?: number; customerName?: string; discount: number; paymentMethod: 'cash' | 'card' | 'qr'; memberId?: string; memberDiscount: number }
   ) => {
     const subtotal = items.reduce((s, i) => s + i.menuItem.price * i.quantity, 0)
-    const totalDiscount = opts.discount + opts.memberDiscount
-    const discounted = subtotal - totalDiscount
+    const discounted = subtotal - opts.discount - opts.memberDiscount
     const tax = Math.round(discounted * 0.07)
     const total = discounted + tax
 
-    const order: Order = {
-      id: generateId(),
-      orderNumber: orderCounter++,
+    const order = await api.createOrder({
       items,
-      status: 'pending',
       tableNumber: opts.tableNumber,
       customerName: opts.customerName,
-      createdAt: new Date(),
-      total,
       discount: opts.discount,
       memberDiscount: opts.memberDiscount,
       tax,
+      total,
       paymentMethod: opts.paymentMethod,
       memberId: opts.memberId,
-    }
+    })
+
     setOrders(prev => [order, ...prev])
     setCart([])
 
@@ -134,7 +140,8 @@ export default function App() {
     return order
   }, [])
 
-  const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
+  const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
+    await api.updateOrderStatus(orderId, status)
     setOrders(prev => prev.map(o =>
       o.id === orderId
         ? { ...o, status, completedAt: status === 'completed' ? new Date() : o.completedAt }
@@ -142,35 +149,34 @@ export default function App() {
     ))
   }, [])
 
-  const deleteOrder = useCallback((orderId: string) => {
+  const deleteOrder = useCallback(async (orderId: string) => {
+    await api.deleteOrder(orderId)
     setOrders(prev => prev.filter(o => o.id !== orderId))
   }, [])
 
-  const updateMenuItem = useCallback((updated: MenuItem) => {
+  const updateMenuItem = useCallback(async (updated: MenuItem) => {
+    await api.updateMenuItem(updated)
     setManagedMenu(prev => prev.map(m => m.id === updated.id ? updated : m))
   }, [])
 
-  const addMenuItem = useCallback((item: MenuItem) => {
-    setManagedMenu(prev => [...prev, item])
+  const addMenuItem = useCallback(async (item: Omit<MenuItem, 'id'>) => {
+    const created = await api.createMenuItem(item)
+    setManagedMenu(prev => [...prev, created])
   }, [])
 
-  const deleteMenuItem = useCallback((id: string) => {
+  const deleteMenuItem = useCallback(async (id: string) => {
+    await api.deleteMenuItem(id)
     setManagedMenu(prev => prev.filter(m => m.id !== id))
   }, [])
 
-  const addMember = useCallback((data: { name: string; phone: string; email?: string }) => {
-    const member: Member = {
-      ...data,
-      id: generateId(),
-      joinedAt: new Date(),
-      totalSpent: 0,
-      totalOrders: 0,
-    }
+  const addMember = useCallback(async (data: { name: string; phone: string; email?: string }) => {
+    const member = await api.createMember(data)
     setMembers(prev => [member, ...prev])
     return member
   }, [])
 
-  const deleteMember = useCallback((id: string) => {
+  const deleteMember = useCallback(async (id: string) => {
+    await api.deleteMember(id)
     setMembers(prev => prev.filter(m => m.id !== id))
   }, [])
 
@@ -178,9 +184,24 @@ export default function App() {
     return members.find(m => m.phone === phone.trim())
   }, [members])
 
+  // ─── Render ────────────────────────────────────────────────────────────────
+
+  if (!authChecked) return <LoadingScreen message="Checking session…" />
+  if (!authUser) return <LoginPage onLogin={handleLogin} />
+  if (loading) return <LoadingScreen message="Connecting to database…" />
+  if (error) return <ErrorScreen message={error} onRetry={loadData} />
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar page={page} onNavigate={setPage} orders={orders} members={members} />
+      {toast && <Toast message={toast} />}
+      <Sidebar
+        page={page}
+        onNavigate={navigate}
+        orders={orders}
+        members={members}
+        user={authUser}
+        onLogout={handleLogout}
+      />
       <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {page === 'order' && (
           <OrderPage
@@ -216,7 +237,61 @@ export default function App() {
             onDeleteMember={deleteMember}
           />
         )}
+        {page === 'settings' && <SettingsPage />}
       </main>
+    </div>
+  )
+}
+
+function LoadingScreen({ message }: { message: string }) {
+  return (
+    <div style={{
+      height: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', background: '#F8F9F8', gap: 16,
+    }}>
+      <div style={{ fontSize: 52 }}>☕</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: '#758650', letterSpacing: 1 }}>Shesha Cafe POS</div>
+      <div style={{ fontSize: 14, color: '#C9B6A1' }}>{message}</div>
+    </div>
+  )
+}
+
+function ErrorScreen({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div style={{
+      height: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', background: '#F8F9F8', gap: 16,
+    }}>
+      <div style={{ fontSize: 52 }}>⚠️</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: '#758650' }}>Cannot reach database</div>
+      <div style={{
+        fontSize: 13, color: '#C9B6A1', maxWidth: 380, textAlign: 'center', lineHeight: 1.6,
+      }}>{message}</div>
+      <div style={{ fontSize: 12, color: '#aaa', maxWidth: 380, textAlign: 'center' }}>
+        Make sure the server is running: <code>npm run dev:all</code>
+      </div>
+      <button
+        onClick={onRetry}
+        style={{
+          marginTop: 8, padding: '11px 28px', borderRadius: 10,
+          background: '#758650', color: '#fff', fontSize: 14, fontWeight: 700,
+        }}
+      >
+        Retry
+      </button>
+    </div>
+  )
+}
+
+function Toast({ message }: { message: string }) {
+  return (
+    <div style={{
+      position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+      background: '#333', color: '#fff', padding: '10px 20px',
+      borderRadius: 10, fontSize: 13, fontWeight: 600, zIndex: 9999,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+    }}>
+      {message}
     </div>
   )
 }

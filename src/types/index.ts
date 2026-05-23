@@ -45,4 +45,20 @@ export interface Member {
   totalOrders: number
 }
 
-export type Page = 'order' | 'manage' | 'menu' | 'summary' | 'members'
+export type Page = 'order' | 'manage' | 'menu' | 'summary' | 'members' | 'settings'
+
+export type Role = 'cashier' | 'manager'
+
+export interface AuthUser {
+  id: string
+  name: string
+  role: Role
+}
+
+export interface StaffAccount {
+  id: string
+  name: string
+  role: Role
+  active: boolean
+  createdAt: Date
+}

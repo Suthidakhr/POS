@@ -1,9 +1,10 @@
-import { MenuItem, Member, Order, OrderItem, OrderStatus } from './types'
+import { MenuItem, Member, Order, OrderItem, OrderStatus, AuthUser, StaffAccount, Role } from './types'
 
 const BASE = '/api'
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(BASE + url, {
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     ...options,
   })
@@ -70,3 +71,31 @@ export const updateOrderStatus = (id: string, status: OrderStatus): Promise<void
 
 export const deleteOrder = (id: string): Promise<void> =>
   req(`/orders/${id}`, { method: 'DELETE' })
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+
+export const getMe = (): Promise<AuthUser> =>
+  req('/auth/me')
+
+export const login = (name: string, pin: string): Promise<AuthUser> =>
+  req('/auth/login', { method: 'POST', body: JSON.stringify({ name, pin }) })
+
+export const logout = (): Promise<void> =>
+  req('/auth/logout', { method: 'POST' })
+
+export const fetchStaffNames = (): Promise<{ id: string; name: string }[]> =>
+  req('/auth/staff')
+
+// ─── STAFF ────────────────────────────────────────────────────────────────────
+
+export const fetchStaff = (): Promise<StaffAccount[]> =>
+  req('/staff')
+
+export const createStaff = (data: { name: string; role: Role; pin: string }): Promise<StaffAccount> =>
+  req('/staff', { method: 'POST', body: JSON.stringify(data) })
+
+export const updateStaff = (
+  id: string,
+  data: Partial<{ name: string; role: Role; pin: string; active: boolean }>
+): Promise<StaffAccount> =>
+  req(`/staff/${id}`, { method: 'PUT', body: JSON.stringify(data) })
