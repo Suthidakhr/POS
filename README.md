@@ -5,134 +5,127 @@
 # Shesha Cafe POS
 
 **A modern, full-featured Point of Sale system built for cafes**  
-Clean UI · Fast workflow · Member discounts · Real-time sales summary
+Clean UI · PostgreSQL persistence · Member discounts · Real-time sales summary
 
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat-square&logo=vite)](https://vitejs.dev)
-
-</div>
-
----
-
-## Overview
-
-**Shesha Cafe POS** is a fully functional, browser-based Point of Sale application designed for cafe and restaurant use. It covers the complete order lifecycle — from browsing the menu and placing orders to tracking kitchen status and reviewing daily sales performance.
-
----
-
-## Screenshots
-
-| New Order | Manage Orders |
-|:---------:|:-------------:|
-| ![New Order](docs/screenshots/01-order.png) | ![Manage Orders](docs/screenshots/02-manage.png) |
-
-| Menu Management | Membership |
-|:---------:|:-----------:|
-| ![Menu](docs/screenshots/03-menu.png) | ![Members](docs/screenshots/04-members.png) |
-
-<div align="center">
-
-| Sales Summary |
-|:-------------:|
-| ![Summary](docs/screenshots/05-summary.png) |
+[![React](https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
+[![Vite](https://img.shields.io/badge/Vite-5.4-646CFF?style=flat-square&logo=vite)](https://vitejs.dev)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Express](https://img.shields.io/badge/Express-4.19-000000?style=flat-square&logo=express)](https://expressjs.com)
 
 </div>
 
-> **Generate screenshots:** Make sure the dev server is running, then run:
-> ```bash
-> npm install puppeteer --save-dev
-> node scripts/capture-screenshots.js
-> ```
+---
+
+## 1. Project Overview
+
+**Shesha Cafe POS** is a browser-based Point-of-Sale system designed for single-location cafe operations. It covers the full order lifecycle — from browsing the menu and building a cart, through kitchen status tracking, to daily sales reporting — with all data persisted in a PostgreSQL database.
+
+The system runs as two processes: a **React SPA** served by Vite on port `5173`, and an **Express REST API** backed by PostgreSQL on port `3001`. Vite proxies all `/api/*` requests to Express in development, so the browser only ever talks to one origin.
+
+```
+Browser (React SPA :5173)
+  └── /api/* proxied by Vite
+        └── Express API (:3001)
+              └── PostgreSQL (cafe_pos :5432)
+```
 
 ---
 
-## Features
+## 2. Tech Stack
 
-### 🛒 New Order
-- Browse **26 menu items** across 5 categories: Coffee, Tea, Smoothie, Food, Bakery
-- Search menu by name in real-time
-- Filter by category with one click
-- Add items to cart, adjust quantity, add per-item notes
-- **Member Lookup** — enter phone number to auto-apply **10% member discount**
-- Manual extra discount field
-- Payment method selector: **Cash / Card / QR**
-- Set table number and customer name
-- Live subtotal, tax (7%), and total calculation
-- Success toast showing order number and savings
+### Frontend
 
-### 📋 Manage Orders
-- View orders grouped by **Active / Completed / All Orders**
-- Live badge count on sidebar for pending/preparing orders
-- Advance order through status stages:
-  - `Pending` → `Preparing` → `Ready` → `Completed`
-- Cancel orders at any stage
-- Expand order card to see full item breakdown, discounts, payment method
-- Remove completed/cancelled orders from the board
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| UI Framework | React | 18.3 |
+| Language | TypeScript | 5.5 |
+| Build Tool | Vite | 5.4 |
+| Styling | Inline CSS (`style={}`) | — |
+| State Management | React `useState` + `useCallback` | — |
+| HTTP Client | Native `fetch` (`src/api.ts`) | — |
+| Icons | Emoji (native, no library) | — |
 
-### 🍽️ Menu Management
-- View all menu items in a searchable, filterable table
-- Toggle item **availability** (show/hide from ordering screen) with one click
+### Backend
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Runtime | Node.js | 20 |
+| HTTP Framework | Express | 4.19 |
+| Database Client | node-postgres (`pg`) | 8.12 |
+| Database | PostgreSQL | 16 |
+| Configuration | dotenv | 16 |
+
+### Developer Tools
+
+| Tool | Purpose |
+|------|---------|
+| `concurrently` | Run Vite + Express in one terminal |
+| `puppeteer` | Screenshot capture script |
+| `tsc` | TypeScript type checking |
+
+---
+
+## 3. Features
+
+### New Order
+- Browse 26 menu items across 5 categories: Coffee, Tea, Smoothie, Food, Bakery
+- Search by name in real time; filter by category chip
+- Add items to cart, adjust quantity, attach a per-item note
+- **Member lookup** — enter phone number to auto-apply 10% member discount
+- Manual extra discount field (cashier-controlled)
+- Payment method selector: Cash / Card / QR
+- Table number and customer name fields
+- Live subtotal → discount → 7% tax → total calculation
+- Success toast showing order number and amount saved
+
+### Manage Orders
+- Three tabs: **Active** (pending / preparing / ready), **Completed**, **All Orders**
+- Live badge count on sidebar for pending and preparing orders
+- Advance order through status stages: `Pending → Preparing → Ready → Completed`
+- Cancel orders at any active stage
+- Expand order card to see full item breakdown, discounts, tax, payment method
+- Remove completed / cancelled orders from the board
+
+### Menu Management
+- Searchable, filterable table of all 26 menu items
+- Toggle item **availability** with one click (hides / shows on Order page instantly)
 - **Edit** any item: name, price, category, emoji, description
-- **Add** new menu items with emoji picker
-- **Delete** items with confirmation
-- Changes reflect instantly on the New Order page
+- **Add** new menu items via an inline form with emoji picker
+- **Delete** items with two-step confirmation
+- All changes are persisted immediately to PostgreSQL
 
-### 👤 Membership
-- Register members with **name, phone, and optional email**
+### Membership
+- Register members with name, phone (unique), optional email
 - Members automatically receive **10% discount** on every order
-- Lookup member by phone number directly from the order screen
-- View each member's **total orders** and **total spent**
-- Stats auto-update after each order placed with the member
+- Lookup member by phone directly from the order screen
+- View per-member stats: total orders and total spent (updated with each order)
 - Search members by name or phone
 - Remove members with confirmation
 
-### 📊 Sales Summary
-- **Period filter**: Today / Last 7 Days / All Time
-- **KPI cards**: Revenue, Orders Completed, Avg. Order Value, Items Sold
-- **Revenue by Hour** bar chart (7am–8pm)
-- **Payment method breakdown** with progress bars (Cash / Card / QR)
-- **Top Selling Items** ranked list
-- **Revenue by Category** with color-coded bars
-- Recent completed orders table with payment info
+### Sales Summary
+- Period filter: **Today / Last 7 Days / All Time**
+- KPI cards: Revenue, Orders Completed, Avg. Order Value, Items Sold
+- Active orders count, Cancelled count, Total tax collected
+- Revenue by Hour bar chart (7 am – 8 pm)
+- Payment method breakdown with progress bars (Cash / Card / QR)
+- Top 8 selling items ranked by quantity
+- Revenue by category with colour-coded bars
+- Recent 10 completed orders table
 
 ---
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18 + TypeScript |
-| Build Tool | Vite 5 |
-| Styling | Inline CSS (no dependencies) |
-| State | React `useState` + `useCallback` (in-memory) |
-| Icons | Emoji-native |
-| Backend (optional) | Node.js + Express + PostgreSQL — see `server/` |
-
----
-
-## Color Palette
-
-Inspired by a fresh farmers-market aesthetic:
-
-| Swatch | Hex | Usage |
-|--------|-----|-------|
-| 🟩 Olive Green | `#758650` | Sidebar, headings, primary buttons |
-| 🟨 Yellow-Green | `#B5C267` | Category chips, active states |
-| 🟡 Light Yellow | `#FFE27C` | Highlights, order number badges |
-| 🟠 Golden | `#E8B634` | Prices, CTA buttons, accents |
-| ⬜ Off-White | `#F8F9F8` | Page backgrounds |
-| 🟫 Beige | `#C9B6A1` | Muted text, subtle borders |
-
----
-
-## Getting Started
+## 4. Setup Instructions
 
 ### Prerequisites
-- Node.js 18+
-- npm 9+
 
-### Installation
+| Requirement | Minimum version |
+|-------------|----------------|
+| Node.js | 20+ |
+| npm | 9+ |
+| PostgreSQL | 14+ (16 recommended) |
+
+### Install
 
 ```bash
 # Clone the repo
@@ -142,11 +135,161 @@ cd POS
 # Install frontend dependencies
 npm install
 
-# Start the dev server
-npm run dev
+# Install server dependencies
+cd server && npm install && cd ..
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+### Configure environment
+
+```bash
+# Copy the example and edit with your credentials
+cp server/.env.example server/.env
+```
+
+Open `server/.env` and set your database connection string (see **Section 5** for details):
+
+```env
+DATABASE_URL=postgresql://<user>@localhost:5432/cafe_pos
+PORT=3001
+```
+
+### Start
+
+```bash
+# Start both Vite (frontend) and Express (backend) together
+npm run dev:all
+```
+
+| URL | Service |
+|-----|---------|
+| http://localhost:5173 | React frontend |
+| http://localhost:3001 | Express API |
+
+The server auto-creates all tables and seeds the 26 menu items on first run.
+Open http://localhost:5173 — the app shows **"Connecting to database…"** briefly, then loads live data.
+
+### Other scripts
+
+```bash
+npm run dev          # Frontend only (Vite)
+npm run dev:server   # Backend only (Express with --watch)
+npm run build        # Production build (tsc + vite build)
+npm run preview      # Preview production build locally
+```
+
+---
+
+## 5. PostgreSQL Setup
+
+### macOS — Homebrew
+
+```bash
+# Install PostgreSQL if not already installed
+brew install postgresql@16
+
+# Start the service
+brew services start postgresql@16
+
+# Create the database
+psql -U $(whoami) -d postgres -c "CREATE DATABASE cafe_pos;"
+```
+
+Connection string (no password required on Homebrew installs):
+
+```env
+DATABASE_URL=postgresql://<your-macos-username>@localhost:5432/cafe_pos
+```
+
+### Ubuntu / Debian
+
+```bash
+sudo apt install postgresql postgresql-contrib
+
+sudo -u postgres psql -c "CREATE USER cafe_owner WITH PASSWORD 'yourpassword';"
+sudo -u postgres psql -c "CREATE DATABASE cafe_pos OWNER cafe_owner;"
+```
+
+```env
+DATABASE_URL=postgresql://cafe_owner:yourpassword@localhost:5432/cafe_pos
+```
+
+### Railway (cloud deployment)
+
+Railway provisions a PostgreSQL instance automatically. Copy the `DATABASE_URL`
+from the Railway dashboard into your service environment variables.
+The server reads `process.env.DATABASE_URL` and auto-connects on startup.
+
+### Database schema
+
+The server runs `CREATE TABLE IF NOT EXISTS` on startup — no manual migration needed.
+Four tables are created automatically:
+
+| Table | Description |
+|-------|-------------|
+| `menu_items` | All menu items (seeded with 26 items on first run) |
+| `members` | Registered members and their lifetime stats |
+| `orders` | Order header — totals, payment method, status, timestamps |
+| `order_items` | Line items — stores a price/name snapshot at order time |
+
+Relationships:
+
+```
+menu_items          members
+    │                  │
+    │ SET NULL          │ SET NULL
+    ▼                  ▼
+order_items ◄──── orders
+   (CASCADE on order delete)
+```
+
+### Inspecting the database
+
+**Terminal (psql):**
+
+```bash
+psql -U <your-username> -d cafe_pos
+
+\dt                           -- list all tables
+\d orders                     -- show columns and constraints
+SELECT * FROM menu_items;     -- view menu
+SELECT * FROM orders;         -- view orders
+SELECT * FROM members;        -- view members
+SELECT * FROM order_items;    -- view order lines
+\q                            -- quit
+```
+
+**pgAdmin 4** (free GUI — [pgadmin.org](https://www.pgadmin.org)):
+
+Register a new server with these connection details:
+
+| Field | Value |
+|-------|-------|
+| Host | `localhost` |
+| Port | `5432` |
+| Maintenance database | `postgres` |
+| Username | your system username |
+| Password | *(leave blank on Homebrew)* |
+
+After connecting: **Databases → cafe_pos → Schemas → public → Tables**
+
+---
+
+## 6. Current Limitations
+
+The following gaps are known and documented with fix plans in
+[`_bmad-output/planning-artifacts/schema-improvements.md`](./_bmad-output/planning-artifacts/schema-improvements.md).
+
+| Limitation | Impact | Priority |
+|------------|--------|----------|
+| **No authentication** | Any user who opens the URL has full access to sales data, menu edits, and member records | High |
+| **No real-time order updates** | A second device or browser tab does not receive new orders without a manual refresh — kitchen display will miss orders | High |
+| **No receipt or print support** | No printable receipt, thermal printer integration, or digital receipt (email / SMS) | Medium |
+| **No API input validation** | Express routes do not validate request bodies — malformed payloads reach PostgreSQL unchecked | Medium |
+| **No CHECK constraints on status / payment_method** | Invalid strings (e.g. `status = 'shipped'`) are accepted silently by the database | Medium |
+| **Member stats drift on cancel/delete** | `total_spent` increments on order creation but never decrements on cancellation or deletion | Medium |
+| **No item customisation** | No size variants, temperature (hot/iced), or sugar level options per item | Low |
+| **Hardcoded categories** | The five categories are a TypeScript union — new categories require a code change | Low |
+| **Short random IDs** | Primary keys are 7-char random strings, not UUIDs — collision risk negligible at cafe scale | Low |
 
 ---
 
@@ -155,51 +298,47 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 ```
 POS/
 ├── src/
-│   ├── components/
-│   │   ├── Sidebar.tsx          # Navigation + logo
-│   │   ├── OrderPage.tsx        # New order + cart
-│   │   ├── ManageOrderPage.tsx  # Order status board
-│   │   ├── MenuManagePage.tsx   # Menu CRUD
-│   │   ├── MembershipPage.tsx   # Member registration
-│   │   └── SummaryPage.tsx      # Sales analytics
-│   ├── data/
-│   │   └── menu.ts              # Default 26 menu items
-│   ├── types/
-│   │   └── index.ts             # TypeScript interfaces
-│   ├── App.tsx                  # Root component + state
-│   └── main.tsx
-├── server/                      # Optional PostgreSQL backend
-│   ├── server.js                # Express API (menu, orders, members)
-│   ├── .env.example
-│   └── package.json
-├── scripts/
-│   └── capture-screenshots.js   # Puppeteer screenshot helper
-└── docs/
-    └── screenshots/             # UI screenshots
+│   ├── api.ts                       # Typed fetch client for all REST endpoints
+│   ├── App.tsx                      # Root — shared state + async API callbacks
+│   ├── types/index.ts               # TypeScript interfaces (MenuItem, Order, Member…)
+│   ├── data/menu.ts                 # Category list + fallback seed data
+│   └── components/
+│       ├── Sidebar.tsx              # Navigation + live badges
+│       ├── OrderPage.tsx            # New order — menu grid + cart
+│       ├── ManageOrderPage.tsx      # Order status board
+│       ├── MenuManagePage.tsx       # Menu CRUD
+│       ├── MembershipPage.tsx       # Member registration + list
+│       └── SummaryPage.tsx          # Sales analytics
+│
+├── server/
+│   ├── server.js                    # Express API + schema init + seed
+│   ├── .env                         # DATABASE_URL (gitignored)
+│   └── .env.example                 # Template for new installs
+│
+├── _bmad-output/
+│   └── planning-artifacts/
+│       ├── architecture.md          # Full system architecture overview
+│       ├── schema.sql               # Target schema design (reference)
+│       └── schema-improvements.md  # DB integrity fix roadmap
+│
+├── docs/screenshots/                # UI screenshots
+├── scripts/capture-screenshots.js  # Puppeteer screenshot helper
+├── vite.config.ts                   # Vite config with /api proxy
+└── package.json
 ```
 
 ---
 
-## Optional: PostgreSQL Backend
+## Color Palette
 
-The app works fully with **in-memory state** by default (data resets on refresh).  
-A production-ready Express + PostgreSQL backend is included in `server/`.
-
-```bash
-# 1. Create database
-psql -U postgres -c "CREATE DATABASE cafe_pos;"
-
-# 2. Set connection string
-echo "DATABASE_URL=postgresql://user:pass@localhost:5432/cafe_pos" > server/.env
-
-# 3. Install server dependencies
-cd server && npm install
-
-# 4. Start both servers together
-cd .. && npm run dev:all
-```
-
-The server auto-creates all tables and seeds the menu on first run.
+| Hex | Usage |
+|-----|-------|
+| `#758650` Olive Green | Sidebar, headings, primary buttons |
+| `#B5C267` Yellow-Green | Category chips, active states |
+| `#FFE27C` Light Yellow | Highlights, order number badges |
+| `#E8B634` Golden | Prices, CTA buttons, accents |
+| `#F8F9F8` Off-White | Page backgrounds |
+| `#C9B6A1` Beige | Muted text, subtle borders |
 
 ---
 
