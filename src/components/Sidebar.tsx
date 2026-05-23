@@ -1,4 +1,4 @@
-import { Page, Order, Member } from '../types'
+import { Page, Order, Member, AuthUser, Role } from '../types'
 
 function SheshaLogo() {
   return (
@@ -27,25 +27,30 @@ function SheshaLogo() {
   )
 }
 
+const ALL_NAV: { id: Page; label: string; icon: string; roles: Role[] }[] = [
+  { id: 'order',    label: 'New Order',      icon: '🛒', roles: ['cashier', 'manager'] },
+  { id: 'manage',   label: 'Manage Orders',  icon: '📋', roles: ['cashier', 'manager'] },
+  { id: 'menu',     label: 'Menu',           icon: '🍽️', roles: ['manager'] },
+  { id: 'members',  label: 'Members',        icon: '👤', roles: ['manager'] },
+  { id: 'summary',  label: 'Summary',        icon: '📊', roles: ['manager'] },
+  { id: 'settings', label: 'Settings',       icon: '⚙️', roles: ['manager'] },
+]
+
 interface Props {
   page: Page
   onNavigate: (p: Page) => void
   orders: Order[]
   members: Member[]
+  user: AuthUser
+  onLogout: () => void
 }
 
-const navItems: { id: Page; label: string; icon: string }[] = [
-  { id: 'order', label: 'New Order', icon: '🛒' },
-  { id: 'manage', label: 'Manage Orders', icon: '📋' },
-  { id: 'menu', label: 'Menu', icon: '🍽️' },
-  { id: 'members', label: 'Members', icon: '👤' },
-  { id: 'summary', label: 'Summary', icon: '📊' },
-]
-
-export default function Sidebar({ page, onNavigate, orders, members }: Props) {
+export default function Sidebar({ page, onNavigate, orders, members, user, onLogout }: Props) {
   const pending = orders.filter(o => o.status === 'pending').length
   const preparing = orders.filter(o => o.status === 'preparing').length
   const activeCount = pending + preparing
+
+  const navItems = ALL_NAV.filter(item => item.roles.includes(user.role))
 
   return (
     <aside style={{
@@ -122,15 +127,48 @@ export default function Sidebar({ page, onNavigate, orders, members }: Props) {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Logged-in user + logout */}
       <div style={{
-        padding: '16px 24px',
+        padding: '14px 20px',
         borderTop: '1px solid rgba(255,255,255,0.15)',
-        color: 'rgba(255,255,255,0.5)',
-        fontSize: 11,
       }}>
-        <div style={{ marginBottom: 2 }}>Total Orders Today</div>
-        <div style={{ color: '#FFE27C', fontWeight: 700, fontSize: 20 }}>{orders.length}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 700, fontSize: 13, color: '#fff', flexShrink: 0,
+          }}>
+            {user.name[0].toUpperCase()}
+          </div>
+          <div style={{ overflow: 'hidden' }}>
+            <div style={{ color: '#fff', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {user.name}
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              {user.role}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={onLogout}
+          style={{
+            width: '100%',
+            padding: '8px',
+            borderRadius: 8,
+            background: 'rgba(255,255,255,0.12)',
+            color: 'rgba(255,255,255,0.75)',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+          }}
+        >
+          <span>→</span> Sign Out
+        </button>
       </div>
     </aside>
   )
