@@ -8,7 +8,64 @@ import MenuManagePage from './components/MenuManagePage'
 import SummaryPage from './components/SummaryPage'
 import MembershipPage from './components/MembershipPage'
 
-let orderCounter = 1
+let orderCounter = 5
+
+// ── Seed data ──────────────────────────────────────────────────────────────
+const SEED_MEMBERS: Member[] = [
+  { id: 'mb1', name: 'Suthida K.',   phone: '0812345678', email: 'suthida@email.com',  joinedAt: new Date('2026-03-15'), totalOrders: 1, totalSpent: 226 },
+  { id: 'mb2', name: 'Thanakorn P.', phone: '0898765432',                               joinedAt: new Date('2026-04-02'), totalOrders: 1, totalSpent: 303 },
+  { id: 'mb3', name: 'Maneerat W.',  phone: '0861234567', email: 'maneerat@email.com', joinedAt: new Date('2026-05-10'), totalOrders: 1, totalSpent: 260 },
+]
+
+const m = menuItems
+const SEED_ORDERS: Order[] = [
+  {
+    id: 'o1', orderNumber: 1, status: 'completed', paymentMethod: 'cash',
+    tableNumber: 3, customerName: 'Suthida K.', memberId: 'mb1',
+    createdAt: new Date('2026-05-23T09:15:00'), completedAt: new Date('2026-05-23T09:38:00'),
+    items: [
+      { menuItem: m.find(x => x.id === 'c3')!, quantity: 1 },
+      { menuItem: m.find(x => x.id === 'c4')!, quantity: 1 },
+      { menuItem: m.find(x => x.id === 'b1')!, quantity: 1 },
+    ],
+    discount: 0, memberDiscount: 24, tax: 15, total: 226,
+  },
+  {
+    id: 'o2', orderNumber: 2, status: 'ready', paymentMethod: 'card',
+    tableNumber: 5, customerName: 'Thanakorn P.', memberId: 'mb2',
+    createdAt: new Date('2026-05-23T10:22:00'),
+    items: [
+      { menuItem: m.find(x => x.id === 'c6')!, quantity: 1 },
+      { menuItem: m.find(x => x.id === 'f1')!, quantity: 1 },
+      { menuItem: m.find(x => x.id === 'b2')!, quantity: 1 },
+    ],
+    discount: 0, memberDiscount: 32, tax: 20, total: 303,
+  },
+  {
+    id: 'o3', orderNumber: 3, status: 'preparing', paymentMethod: 'qr',
+    tableNumber: 2, customerName: 'Maneerat W.', memberId: 'mb3',
+    createdAt: new Date('2026-05-23T10:45:00'),
+    items: [
+      { menuItem: m.find(x => x.id === 't1')!, quantity: 1 },
+      { menuItem: m.find(x => x.id === 't3')!, quantity: 1 },
+      { menuItem: m.find(x => x.id === 'f5')!, quantity: 1 },
+    ],
+    discount: 0, memberDiscount: 27, tax: 17, total: 260,
+  },
+  {
+    id: 'o4', orderNumber: 4, status: 'pending', paymentMethod: 'cash',
+    tableNumber: 1, customerName: 'Walk-in',
+    createdAt: new Date('2026-05-23T11:02:00'),
+    items: [
+      { menuItem: m.find(x => x.id === 'c2')!, quantity: 1 },
+      { menuItem: m.find(x => x.id === 'c8')!, quantity: 1 },
+      { menuItem: m.find(x => x.id === 'b4')!, quantity: 1 },
+      { menuItem: m.find(x => x.id === 'b5')!, quantity: 1 },
+    ],
+    discount: 0, memberDiscount: 0, tax: 23, total: 358,
+  },
+]
+// ───────────────────────────────────────────────────────────────────────────
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9)
@@ -16,10 +73,10 @@ function generateId() {
 
 export default function App() {
   const [page, setPage] = useState<Page>('order')
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<Order[]>(SEED_ORDERS)
   const [cart, setCart] = useState<OrderItem[]>([])
   const [managedMenu, setManagedMenu] = useState<MenuItem[]>(menuItems)
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<Member[]>(SEED_MEMBERS)
 
   const addToCart = useCallback((item: MenuItem) => {
     setCart(prev => {
