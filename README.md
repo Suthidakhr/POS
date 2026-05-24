@@ -13,6 +13,11 @@ Clean UI · PostgreSQL persistence · Role-based auth · Member discounts · Rea
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![Express](https://img.shields.io/badge/Express-4.19-000000?style=flat-square&logo=express)](https://expressjs.com)
 
+### 🚀 [Live Demo → pos-a5a9.onrender.com](https://pos-a5a9.onrender.com)
+
+> **Demo credentials:** Manager — PIN `1234`  
+> *(Free tier — may take ~30s to wake up on first load)*
+
 </div>
 
 ---
@@ -268,11 +273,20 @@ sudo -u postgres psql -c "CREATE DATABASE cafe_pos OWNER cafe_owner;"
 DATABASE_URL=postgresql://cafe_owner:yourpassword@localhost:5432/cafe_pos
 ```
 
-### Railway (cloud deployment)
+### Neon + Render (cloud deployment — recommended)
 
-Railway provisions a PostgreSQL instance automatically. Copy the `DATABASE_URL`
-from the Railway dashboard into your service environment variables.
-The server reads `process.env.DATABASE_URL` and auto-connects on startup.
+This project is deployed using **[Neon](https://neon.com)** (free PostgreSQL) and **[Render](https://render.com)** (free web service).
+
+1. Create a free database at [neon.com](https://neon.com) — copy the connection string
+2. Deploy to Render from GitHub — set these environment variables:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Neon connection string (include `?sslmode=require`) |
+| `JWT_SECRET` | `openssl rand -hex 32` |
+| `NODE_ENV` | `production` |
+
+See [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) for the full step-by-step guide.
 
 ### Database schema
 
