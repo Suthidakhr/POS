@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Order, OrderItem, OrderStatus, Page, MenuItem, Member, AuthUser } from './types'
 import * as api from './api'
+import { useBreakpoint } from './hooks/useBreakpoint'
 import Sidebar from './components/Sidebar'
 import OrderPage from './components/OrderPage'
 import ManageOrderPage from './components/ManageOrderPage'
@@ -13,6 +14,7 @@ import LoginPage from './components/LoginPage'
 const CASHIER_PAGES: Page[] = ['order', 'manage']
 
 export default function App() {
+  const { isMobile } = useBreakpoint()
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
 
@@ -202,7 +204,7 @@ export default function App() {
         user={authUser}
         onLogout={handleLogout}
       />
-      <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', paddingTop: isMobile ? 48 : 0, paddingBottom: isMobile ? 60 : 0 }}>
         {page === 'order' && (
           <OrderPage
             menuItems={managedMenu}

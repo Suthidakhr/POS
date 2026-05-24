@@ -19,21 +19,37 @@ Clean UI · PostgreSQL persistence · Role-based auth · Member discounts · Rea
 
 ## Screenshots
 
-| Login | New Order |
-|-------|-----------|
-| ![Login](docs/screenshots/00-login.png) | ![New Order](docs/screenshots/01-order.png) |
+### Responsive Design — works on every screen size
 
-| Manage Orders | Menu Management |
-|---------------|-----------------|
-| ![Manage Orders](docs/screenshots/02-manage.png) | ![Menu Management](docs/screenshots/03-menu.png) |
+#### 🖥️ Desktop (1280px)
 
-| Members | Sales Summary |
-|---------|---------------|
-| ![Members](docs/screenshots/04-members.png) | ![Sales Summary](docs/screenshots/05-summary.png) |
+| Login | New Order | Manage Orders |
+|-------|-----------|---------------|
+| ![Login](docs/screenshots/responsive/desktop-login.png) | ![New Order](docs/screenshots/responsive/desktop-order.png) | ![Manage Orders](docs/screenshots/responsive/desktop-manage.png) |
 
-| Staff Settings |
-|----------------|
-| ![Staff Settings](docs/screenshots/06-settings.png) |
+| Sales Summary |
+|---------------|
+| ![Sales Summary](docs/screenshots/responsive/desktop-summary.png) |
+
+---
+
+#### 📱 Tablet (768px) — icon-only sidebar
+
+| Login | New Order | Manage Orders |
+|-------|-----------|---------------|
+| ![Login](docs/screenshots/responsive/tablet-login.png) | ![New Order](docs/screenshots/responsive/tablet-order.png) | ![Manage Orders](docs/screenshots/responsive/tablet-manage.png) |
+
+| Sales Summary |
+|---------------|
+| ![Sales Summary](docs/screenshots/responsive/tablet-summary.png) |
+
+---
+
+#### 📲 Mobile (390px) — top bar + bottom navigation
+
+| Login | New Order | Manage Orders |
+|-------|-----------|---------------|
+| ![Login](docs/screenshots/responsive/mobile-login.png) | ![New Order](docs/screenshots/responsive/mobile-order.png) | ![Manage Orders](docs/screenshots/responsive/mobile-manage.png) |
 
 ---
 

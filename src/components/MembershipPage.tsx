@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Member } from '../types'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 
 interface Props {
   members: Member[]
@@ -14,6 +15,7 @@ function formatDate(d: Date) {
 const emptyForm = { name: '', phone: '', email: '' }
 
 export default function MembershipPage({ members, onAddMember, onDeleteMember }: Props) {
+  const { isMobile } = useBreakpoint()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState<Partial<typeof emptyForm>>({})
@@ -24,8 +26,7 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const filtered = members.filter(m =>
-    m.name.toLowerCase().includes(search.toLowerCase()) ||
-    m.phone.includes(search)
+    m.name.toLowerCase().includes(search.toLowerCase()) || m.phone.includes(search)
   )
 
   const validate = () => {
@@ -55,75 +56,85 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
     }
   }
 
+  const hPad = isMobile ? '16px' : '20px 28px 16px'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F8F9F8' }}>
       {/* Header */}
-      <div style={{ padding: '20px 28px 16px', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+      <div style={{ padding: hPad, background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+          marginBottom: 12, gap: 10,
+        }}>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#758650' }}>Membership</h1>
-            <p style={{ fontSize: 13, color: '#C9B6A1', marginTop: 2 }}>Members enjoy 10% discount on every order</p>
+            <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, color: '#758650' }}>Membership</h1>
+            <p style={{ fontSize: 12, color: '#C9B6A1', marginTop: 2 }}>Members enjoy 10% discount on every order</p>
           </div>
           <button
             onClick={() => { setShowForm(true); setErrors({}) }}
             style={{
-              background: '#E8B634', color: '#fff', padding: '10px 20px',
-              borderRadius: 10, fontSize: 13, fontWeight: 700,
+              background: '#E8B634', color: '#fff',
+              padding: isMobile ? '8px 14px' : '10px 20px',
+              borderRadius: 10, fontSize: 13, fontWeight: 700, flexShrink: 0,
             }}
           >
-            + Register Member
+            + Register
           </button>
         </div>
 
         {/* Stats row */}
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <div style={{
-            background: '#f8f9f8', borderRadius: 10, padding: '10px 16px',
-            border: '1px solid #f0f0f0', display: 'flex', gap: 10, alignItems: 'center',
+            background: '#f8f9f8', borderRadius: 10, padding: '10px 14px',
+            border: '1px solid #f0f0f0', display: 'flex', gap: 8, alignItems: 'center',
           }}>
-            <span style={{ fontSize: 22 }}>👤</span>
+            <span style={{ fontSize: 20 }}>👤</span>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 18, color: '#758650' }}>{members.length}</div>
-              <div style={{ fontSize: 11, color: '#C9B6A1' }}>Total Members</div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#758650' }}>{members.length}</div>
+              <div style={{ fontSize: 10, color: '#C9B6A1' }}>Total Members</div>
             </div>
           </div>
           <div style={{
-            background: '#f8f9f8', borderRadius: 10, padding: '10px 16px',
-            border: '1px solid #f0f0f0', display: 'flex', gap: 10, alignItems: 'center',
+            background: '#f8f9f8', borderRadius: 10, padding: '10px 14px',
+            border: '1px solid #f0f0f0', display: 'flex', gap: 8, alignItems: 'center',
           }}>
-            <span style={{ fontSize: 22 }}>💰</span>
+            <span style={{ fontSize: 20 }}>💰</span>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 18, color: '#E8B634' }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#E8B634' }}>
                 ฿{members.reduce((s, m) => s + m.totalSpent, 0).toLocaleString()}
               </div>
-              <div style={{ fontSize: 11, color: '#C9B6A1' }}>Total Member Spend</div>
+              <div style={{ fontSize: 10, color: '#C9B6A1' }}>Member Spend</div>
             </div>
           </div>
           <div style={{
-            background: '#FFF3CC', borderRadius: 10, padding: '10px 16px',
-            border: '1px solid #FFE27C', display: 'flex', gap: 10, alignItems: 'center',
+            background: '#FFF3CC', borderRadius: 10, padding: '10px 14px',
+            border: '1px solid #FFE27C', display: 'flex', gap: 8, alignItems: 'center',
           }}>
-            <span style={{ fontSize: 22 }}>🏷️</span>
+            <span style={{ fontSize: 20 }}>🏷️</span>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 18, color: '#c07800' }}>10%</div>
-              <div style={{ fontSize: 11, color: '#c07800' }}>Member Discount</div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: '#c07800' }}>10%</div>
+              <div style={{ fontSize: 10, color: '#c07800' }}>Discount</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 28px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 16 : '16px 28px' }}>
         {/* Register Form */}
         {showForm && (
           <div style={{
             background: '#fff', borderRadius: 14, border: '2px solid #FFE27C',
-            padding: 24, marginBottom: 20,
+            padding: isMobile ? 16 : 24, marginBottom: 20,
             boxShadow: '0 4px 20px rgba(232,182,52,0.1)',
           }}>
-            <div style={{ fontWeight: 700, color: '#758650', fontSize: 16, marginBottom: 18 }}>
+            <div style={{ fontWeight: 700, color: '#758650', fontSize: 15, marginBottom: 16 }}>
               Register New Member
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
+              gap: 12, marginBottom: 14,
+            }}>
               <div>
                 <label style={labelStyle}>Full Name *</label>
                 <input
@@ -155,10 +166,9 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
               </div>
             </div>
 
-            {/* Benefit note */}
             <div style={{
               background: '#f0faf0', border: '1px solid #B5C267', borderRadius: 8,
-              padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#758650',
+              padding: '10px 14px', marginBottom: 14, fontSize: 13, color: '#758650',
             }}>
               🎁 This member will receive <strong>10% discount</strong> on every order automatically.
             </div>
@@ -196,7 +206,7 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
           style={{
             width: '100%', padding: '10px 16px', borderRadius: 10,
             border: '1.5px solid #C9B6A1', fontSize: 14, outline: 'none',
-            background: '#fff', marginBottom: 14,
+            background: '#fff', marginBottom: 14, boxSizing: 'border-box',
           }}
         />
 
@@ -204,10 +214,12 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#C9B6A1', padding: '60px 0' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>👤</div>
-            <div style={{ fontSize: 15 }}>{members.length === 0 ? 'No members yet — register the first one!' : 'No members match your search'}</div>
+            <div style={{ fontSize: 15 }}>
+              {members.length === 0 ? 'No members yet — register the first one!' : 'No members match your search'}
+            </div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
             {filtered.map(member => (
               <MemberCard
                 key={member.id}
@@ -222,13 +234,12 @@ export default function MembershipPage({ members, onAddMember, onDeleteMember }:
         )}
       </div>
 
-      {/* Success toast */}
       {successName && (
         <div style={{
-          position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)',
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
           background: '#758650', color: '#fff', padding: '14px 28px',
           borderRadius: 12, fontSize: 15, fontWeight: 600, zIndex: 1000,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)', whiteSpace: 'nowrap',
         }}>
           ✓ {successName} registered as member!
         </div>
@@ -254,19 +265,19 @@ function MemberCard({ member, confirmDelete, onDelete, onConfirmDelete, onCancel
           <div style={{
             width: 42, height: 42, borderRadius: 12, background: '#FFE27C',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 800, fontSize: 18, color: '#758650',
+            fontWeight: 800, fontSize: 18, color: '#758650', flexShrink: 0,
           }}>
             {member.name.charAt(0).toUpperCase()}
           </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: '#2d2d2d' }}>{member.name}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#2d2d2d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.name}</div>
             <div style={{ fontSize: 12, color: '#C9B6A1' }}>{member.phone}</div>
-            {member.email && <div style={{ fontSize: 12, color: '#C9B6A1' }}>{member.email}</div>}
+            {member.email && <div style={{ fontSize: 12, color: '#C9B6A1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.email}</div>}
           </div>
         </div>
         <span style={{
           background: '#f0faf0', color: '#2d6a4f', borderRadius: 8,
-          padding: '3px 10px', fontSize: 11, fontWeight: 700,
+          padding: '3px 10px', fontSize: 11, fontWeight: 700, flexShrink: 0,
         }}>
           10% OFF
         </span>
@@ -284,7 +295,7 @@ function MemberCard({ member, confirmDelete, onDelete, onConfirmDelete, onCancel
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 11, color: '#C9B6A1' }}>Member since {formatDate(member.joinedAt)}</div>
+        <div style={{ fontSize: 11, color: '#C9B6A1' }}>Since {formatDate(member.joinedAt)}</div>
         {confirmDelete === member.id ? (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: '#888' }}>Remove?</span>
@@ -305,6 +316,7 @@ const labelStyle: React.CSSProperties = {
 const formInput: React.CSSProperties = {
   width: '100%', padding: '9px 12px', borderRadius: 8,
   border: '1.5px solid #e0e0e0', fontSize: 13, outline: 'none', background: '#fafafa',
+  boxSizing: 'border-box',
 }
 const errorStyle: React.CSSProperties = {
   fontSize: 11, color: '#ff4d4f', marginTop: 4,

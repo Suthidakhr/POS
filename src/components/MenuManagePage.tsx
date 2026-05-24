@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { MenuItem, Category } from '../types'
 import { categories } from '../data/menu'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 
 interface Props {
   menuItems: MenuItem[]
@@ -14,6 +15,7 @@ const emptyItem = (): Omit<MenuItem, 'id'> => ({
 })
 
 export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onDeleteItem }: Props) {
+  const { isMobile } = useBreakpoint()
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
   const [addingNew, setAddingNew] = useState(false)
@@ -58,16 +60,20 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
     }
   }
 
+  const hPad = isMobile ? '14px 16px 0' : '20px 28px 0'
+  const listPad = isMobile ? '12px 16px' : '16px 28px'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F8F9F8' }}>
       {/* Header */}
-      <div style={{ padding: '20px 28px 0', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#758650' }}>Menu Management</h1>
+      <div style={{ padding: hPad, background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, color: '#758650' }}>Menu Management</h1>
           <button
             onClick={() => { setAddingNew(true); setEditingItem(null) }}
             style={{
-              background: '#E8B634', color: '#fff', padding: '9px 18px',
+              background: '#E8B634', color: '#fff',
+              padding: isMobile ? '8px 14px' : '9px 18px',
               borderRadius: 10, fontSize: 13, fontWeight: 700,
             }}
           >
@@ -81,7 +87,7 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
           style={{
             width: '100%', padding: '9px 14px', borderRadius: 10,
             border: '1.5px solid #C9B6A1', fontSize: 14, outline: 'none',
-            background: '#fafafa', marginBottom: 12,
+            background: '#fafafa', marginBottom: 12, boxSizing: 'border-box',
           }}
         />
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 12 }}>
@@ -103,8 +109,7 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 28px' }}>
-        {/* Add New Form */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: listPad }}>
         {addingNew && (
           <ItemForm
             item={newItem as MenuItem}
@@ -114,28 +119,32 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
             isNew
             busy={busy}
             error={formError}
+            isMobile={isMobile}
           />
         )}
 
-        {/* Items Table */}
         <div style={{ background: '#fff', borderRadius: 14, border: '1.5px solid #f0f0f0', overflow: 'hidden' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '36px 1fr 80px 72px 80px',
-            padding: '10px 18px',
-            background: '#F8F9F8',
-            fontSize: 11, color: '#C9B6A1', fontWeight: 700, textTransform: 'uppercase', gap: 8,
-          }}>
-            <span></span>
-            <span>Item</span>
-            <span>Price</span>
-            <span>Status</span>
-            <span></span>
-          </div>
+          {/* Table header — hidden on mobile */}
+          {!isMobile && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '36px 1fr 80px 72px 80px',
+              padding: '10px 18px',
+              background: '#F8F9F8',
+              fontSize: 11, color: '#C9B6A1', fontWeight: 700, textTransform: 'uppercase', gap: 8,
+            }}>
+              <span></span>
+              <span>Item</span>
+              <span>Price</span>
+              <span>Status</span>
+              <span></span>
+            </div>
+          )}
+
           {filtered.map((item, i) => (
             <div key={item.id}>
               {editingItem?.id === item.id ? (
-                <div style={{ padding: '12px 18px', background: '#fffdf5', borderTop: '1px solid #f0f0f0' }}>
+                <div style={{ padding: '12px 16px', background: '#fffdf5', borderTop: '1px solid #f0f0f0' }}>
                   <ItemForm
                     item={editingItem}
                     onChange={v => setEditingItem(v as MenuItem)}
@@ -143,9 +152,51 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
                     onCancel={() => { setEditingItem(null); setFormError(null) }}
                     busy={busy}
                     error={formError}
+                    isMobile={isMobile}
                   />
                 </div>
+              ) : isMobile ? (
+                // Mobile card row
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '12px 16px',
+                  borderTop: i === 0 ? 'none' : '1px solid #f8f8f8',
+                  opacity: item.available ? 1 : 0.5,
+                }}>
+                  <span style={{ fontSize: 22, flexShrink: 0 }}>{item.emoji}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
+                    <div style={{ fontSize: 11, color: '#C9B6A1' }}>{item.category} · <span style={{ fontWeight: 700, color: '#E8B634' }}>฿{item.price}</span></div>
+                  </div>
+                  <button
+                    onClick={() => onUpdateItem({ ...item, available: !item.available })}
+                    style={{
+                      padding: '4px 8px', borderRadius: 8, fontSize: 11, fontWeight: 600,
+                      background: item.available ? '#D8F3DC' : '#f0f0f0',
+                      color: item.available ? '#2d6a4f' : '#aaa',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {item.available ? '✓' : '✗'}
+                  </button>
+                  <button
+                    onClick={() => { setEditingItem({ ...item }); setAddingNew(false); setFormError(null) }}
+                    style={{ padding: '5px 10px', borderRadius: 7, background: '#FFE27C', color: '#5a4000', fontSize: 12, fontWeight: 600 }}
+                  >Edit</button>
+                  {confirmDelete === item.id ? (
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button onClick={async () => { await onDeleteItem(item.id); setConfirmDelete(null) }}
+                        style={{ padding: '5px 8px', borderRadius: 7, background: '#ff4d4f', color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</button>
+                      <button onClick={() => setConfirmDelete(null)}
+                        style={{ padding: '5px 8px', borderRadius: 7, background: '#f0f0f0', color: '#888', fontSize: 11 }}>✗</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmDelete(item.id)}
+                      style={{ padding: '5px 8px', borderRadius: 7, background: '#f8f8f8', color: '#C9B6A1', fontSize: 13, border: '1px solid #eee' }}>🗑</button>
+                  )}
+                </div>
               ) : (
+                // Desktop table row
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: '36px 1fr 80px 72px 80px',
@@ -177,10 +228,7 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
                     >Edit</button>
                     {confirmDelete === item.id ? (
                       <>
-                        <button onClick={async () => {
-                          await onDeleteItem(item.id)
-                          setConfirmDelete(null)
-                        }}
+                        <button onClick={async () => { await onDeleteItem(item.id); setConfirmDelete(null) }}
                           style={{ padding: '5px 8px', borderRadius: 7, background: '#ff4d4f', color: '#fff', fontSize: 11, fontWeight: 700 }}>✓</button>
                         <button onClick={() => setConfirmDelete(null)}
                           style={{ padding: '5px 8px', borderRadius: 7, background: '#f0f0f0', color: '#888', fontSize: 11 }}>✗</button>
@@ -204,7 +252,7 @@ export default function MenuManagePage({ menuItems, onUpdateItem, onAddItem, onD
 }
 
 function ItemForm({
-  item, onChange, onSave, onCancel, isNew, busy, error
+  item, onChange, onSave, onCancel, isNew, busy, error, isMobile
 }: {
   item: MenuItem | Omit<MenuItem, 'id'>
   onChange: (v: MenuItem | Omit<MenuItem, 'id'>) => void
@@ -213,6 +261,7 @@ function ItemForm({
   isNew?: boolean
   busy?: boolean
   error?: string | null
+  isMobile?: boolean
 }) {
   const cats: Category[] = ['coffee', 'tea', 'smoothie', 'food', 'bakery']
   const emojis = ['☕', '🍵', '🧋', '🥤', '🍫', '🥭', '🫐', '🍌', '🥑', '🍳', '🥐', '🥪', '🍋', '🌀', '🍽️', '🫙', '🥗', '🌼', '🫖', '🧊']
@@ -220,17 +269,21 @@ function ItemForm({
   return (
     <div style={{
       background: '#fffdf5', border: '1.5px solid #FFE27C',
-      borderRadius: 12, padding: 18, marginBottom: 16,
+      borderRadius: 12, padding: isMobile ? 14 : 18, marginBottom: 16,
     }}>
       <div style={{ fontWeight: 700, color: '#758650', fontSize: 14, marginBottom: 14 }}>
         {isNew ? '+ New Menu Item' : 'Edit Item'}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr',
+        gap: 10, marginBottom: 10,
+      }}>
         <input
           value={item.name}
           onChange={e => onChange({ ...item, name: e.target.value })}
           placeholder="Item name *"
-          style={formInput}
+          style={{ ...formInput, gridColumn: isMobile ? '1 / -1' : undefined }}
         />
         <input
           value={item.price}
@@ -251,7 +304,7 @@ function ItemForm({
         value={item.description}
         onChange={e => onChange({ ...item, description: e.target.value })}
         placeholder="Description"
-        style={{ ...formInput, width: '100%', marginBottom: 10 }}
+        style={{ ...formInput, width: '100%', marginBottom: 10, boxSizing: 'border-box' }}
       />
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>Emoji</div>
@@ -293,5 +346,5 @@ function ItemForm({
 
 const formInput: React.CSSProperties = {
   padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e0e0e0',
-  fontSize: 13, outline: 'none', background: '#fff', width: '100%',
+  fontSize: 13, outline: 'none', background: '#fff', width: '100%', boxSizing: 'border-box',
 }

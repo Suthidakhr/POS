@@ -49,23 +49,26 @@ export default function LoginPage({ onLogin }: Props) {
       alignItems: 'center',
       justifyContent: 'center',
       background: 'linear-gradient(135deg, #758650 0%, #5c6a3e 100%)',
+      padding: '16px',
+      boxSizing: 'border-box',
     }}>
       <div style={{
         background: '#fff',
         borderRadius: 20,
-        padding: '48px 44px 40px',
-        width: 360,
+        padding: '40px 32px 36px',
+        width: '100%',
+        maxWidth: 380,
         boxShadow: '0 20px 60px rgba(0,0,0,0.18)',
+        boxSizing: 'border-box',
       }}>
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontSize: 52, marginBottom: 8 }}>☕</div>
           <div style={{ fontSize: 22, fontWeight: 800, color: '#758650', letterSpacing: 1 }}>Shesha Cafe</div>
           <div style={{ fontSize: 12, color: '#C9B6A1', letterSpacing: 3, textTransform: 'uppercase', marginTop: 2 }}>Point of Sale</div>
         </div>
 
         <form onSubmit={handleLogin} noValidate>
-          {/* Name select */}
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase' }}>
               Staff Name
@@ -95,7 +98,6 @@ export default function LoginPage({ onLogin }: Props) {
             </select>
           </div>
 
-          {/* PIN input */}
           <div style={{ marginBottom: 24 }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6, letterSpacing: 0.5, textTransform: 'uppercase' }}>
               PIN
@@ -125,7 +127,6 @@ export default function LoginPage({ onLogin }: Props) {
             />
           </div>
 
-          {/* Error */}
           {error && (
             <div style={{
               background: '#FFF3F3',
@@ -141,7 +142,6 @@ export default function LoginPage({ onLogin }: Props) {
             </div>
           )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading || namesLoading}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { MenuItem, OrderItem, Order, Member } from '../types'
 import { categories } from '../data/menu'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 
 interface Props {
   menuItems: MenuItem[]
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export default function OrderPage({ menuItems, cart, onAddToCart, onUpdateCartItem, onClearCart, onPlaceOrder, onFindMember }: Props) {
+  const { isMobile, isTablet } = useBreakpoint()
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [search, setSearch] = useState('')
   const [tableNumber, setTableNumber] = useState('')
@@ -33,8 +35,8 @@ export default function OrderPage({ menuItems, cart, onAddToCart, onUpdateCartIt
   const [lastOrder, setLastOrder] = useState<Order | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [mobileView, setMobileView] = useState<'menu' | 'cart'>('menu')
 
-  // Member lookup
   const [memberPhone, setMemberPhone] = useState('')
   const [activeMember, setActiveMember] = useState<Member | null>(null)
   const [memberNotFound, setMemberNotFound] = useState(false)
@@ -52,6 +54,7 @@ export default function OrderPage({ menuItems, cart, onAddToCart, onUpdateCartIt
   const discounted = subtotal - totalDiscount
   const tax = Math.round(discounted * 0.07)
   const total = discounted + tax
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0)
 
   const handleLookupMember = () => {
     setMemberNotFound(false)
@@ -96,6 +99,7 @@ export default function OrderPage({ menuItems, cart, onAddToCart, onUpdateCartIt
       setActiveMember(null)
       setMemberPhone('')
       setMemberNotFound(false)
+      if (isMobile) setMobileView('menu')
       setTimeout(() => setShowSuccess(false), 3500)
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to place order')
@@ -104,238 +108,301 @@ export default function OrderPage({ menuItems, cart, onAddToCart, onUpdateCartIt
     }
   }
 
-  return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
-      {/* Menu Panel */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px 0', background: '#F8F9F8' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#758650', marginBottom: 14 }}>New Order</h1>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search menu..."
-            style={{
-              width: '100%', padding: '10px 16px', borderRadius: 10,
-              border: '1.5px solid #C9B6A1', fontSize: 14,
-              background: '#fff', outline: 'none', marginBottom: 14,
-            }}
-          />
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 14 }}>
-            {categories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setSelectedCategory(cat.id)}
-                style={{
-                  padding: '7px 16px', borderRadius: 20,
-                  background: selectedCategory === cat.id ? '#758650' : '#fff',
-                  color: selectedCategory === cat.id ? '#fff' : '#758650',
-                  border: `1.5px solid ${selectedCategory === cat.id ? '#758650' : '#C9B6A1'}`,
-                  fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
-                  display: 'flex', alignItems: 'center', gap: 5,
-                }}
-              >
-                {cat.emoji} {cat.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div style={{
-          flex: 1, overflowY: 'auto', padding: '12px 24px 24px',
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-          gap: 12, alignContent: 'start',
-        }}>
-          {filtered.map(item => (
-            <MenuCard key={item.id} item={item} onClick={() => onAddToCart(item)} />
-          ))}
-          {filtered.length === 0 && (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', color: '#C9B6A1', padding: 40, fontSize: 15 }}>
-              No items found
-            </div>
+  // ── Cart panel (shared between mobile and desktop) ────────────────────────
+  const CartPanel = (
+    <div style={{
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      background: '#fff',
+      ...(isMobile
+        ? { flex: 1 }
+        : { width: isTablet ? 280 : 320, flexShrink: 0, borderLeft: '1px solid #e8e8e8' }
+      ),
+    }}>
+      <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#758650' }}>Order Cart</h2>
+          {cart.length > 0 && (
+            <button onClick={onClearCart} style={{ fontSize: 12, color: '#C9B6A1', background: 'none', textDecoration: 'underline' }}>
+              Clear all
+            </button>
           )}
         </div>
       </div>
 
-      {/* Cart Panel */}
-      <div style={{
-        width: 320, background: '#fff', borderLeft: '1px solid #e8e8e8',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      }}>
-        <div style={{ padding: '20px 20px 12px', borderBottom: '1px solid #f0f0f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: '#758650' }}>Order Cart</h2>
-            {cart.length > 0 && (
-              <button onClick={onClearCart} style={{ fontSize: 12, color: '#C9B6A1', background: 'none', textDecoration: 'underline' }}>
-                Clear all
-              </button>
-            )}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+        {cart.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#C9B6A1', padding: '40px 20px', fontSize: 14 }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>🛒</div>
+            Add items to start an order
           </div>
-        </div>
+        ) : (
+          cart.map(item => (
+            <CartItem key={item.menuItem.id} item={item} onUpdate={onUpdateCartItem} />
+          ))
+        )}
+      </div>
 
-        {/* Cart Items */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-          {cart.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#C9B6A1', padding: '40px 20px', fontSize: 14 }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>🛒</div>
-              Add items to start an order
+      <div style={{ padding: '12px 20px', borderTop: '1px solid #f0f0f0' }}>
+        {/* Member Lookup */}
+        <div style={{
+          background: activeMember ? '#f0faf0' : '#fafafa',
+          border: `1.5px solid ${activeMember ? '#B5C267' : '#e8e8e8'}`,
+          borderRadius: 10, padding: '10px 12px', marginBottom: 10,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#758650', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            👤 Member Lookup
+          </div>
+          {activeMember ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#2d2d2d' }}>{activeMember.name}</div>
+                <div style={{ fontSize: 11, color: '#758650', fontWeight: 600 }}>✓ Member · 10% discount applied</div>
+              </div>
+              <button onClick={handleClearMember} style={{ fontSize: 11, color: '#C9B6A1', background: 'none', textDecoration: 'underline' }}>Remove</button>
             </div>
           ) : (
-            cart.map(item => (
-              <CartItem key={item.menuItem.id} item={item} onUpdate={onUpdateCartItem} />
-            ))
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                value={memberPhone}
+                onChange={e => { setMemberPhone(e.target.value); setMemberNotFound(false) }}
+                onKeyDown={e => e.key === 'Enter' && handleLookupMember()}
+                placeholder="Phone number"
+                style={{
+                  flex: 1, padding: '7px 10px', borderRadius: 7,
+                  border: `1.5px solid ${memberNotFound ? '#ff4d4f' : '#e0e0e0'}`,
+                  fontSize: 13, outline: 'none', background: '#fff',
+                }}
+              />
+              <button
+                onClick={handleLookupMember}
+                style={{ padding: '7px 12px', borderRadius: 7, background: '#758650', color: '#fff', fontSize: 12, fontWeight: 700 }}
+              >Find</button>
+            </div>
+          )}
+          {memberNotFound && (
+            <div style={{ fontSize: 11, color: '#ff4d4f', marginTop: 5 }}>
+              No member found ·{' '}
+              <span style={{ textDecoration: 'underline', cursor: 'pointer', color: '#758650' }}
+                onClick={() => { setMemberNotFound(false); setMemberPhone('') }}>Clear</span>
+            </div>
           )}
         </div>
 
-        {/* Order Details */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+          <input value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="Table #" type="number" style={inputStyle} />
+          <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Customer name" style={inputStyle} />
+        </div>
+        <input
+          value={discount} onChange={e => setDiscount(e.target.value)}
+          placeholder="Extra discount (฿)" type="number"
+          style={{ ...inputStyle, width: '100%', marginBottom: 8, flex: 'none' }}
+        />
 
-          {/* Member Lookup */}
-          <div style={{
-            background: activeMember ? '#f0faf0' : '#fafafa',
-            border: `1.5px solid ${activeMember ? '#B5C267' : '#e8e8e8'}`,
-            borderRadius: 10, padding: '10px 12px', marginBottom: 10,
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#758650', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              👤 Member Lookup
-            </div>
-            {activeMember ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: '#2d2d2d' }}>{activeMember.name}</div>
-                  <div style={{ fontSize: 11, color: '#758650', fontWeight: 600 }}>
-                    ✓ Member · 10% discount applied
-                  </div>
-                </div>
-                <button onClick={handleClearMember} style={{
-                  fontSize: 11, color: '#C9B6A1', background: 'none', textDecoration: 'underline',
-                }}>Remove</button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input
-                  value={memberPhone}
-                  onChange={e => { setMemberPhone(e.target.value); setMemberNotFound(false) }}
-                  onKeyDown={e => e.key === 'Enter' && handleLookupMember()}
-                  placeholder="Phone number"
-                  style={{
-                    flex: 1, padding: '7px 10px', borderRadius: 7,
-                    border: `1.5px solid ${memberNotFound ? '#ff4d4f' : '#e0e0e0'}`,
-                    fontSize: 13, outline: 'none', background: '#fff',
-                  }}
-                />
-                <button
-                  onClick={handleLookupMember}
-                  style={{
-                    padding: '7px 12px', borderRadius: 7, background: '#758650',
-                    color: '#fff', fontSize: 12, fontWeight: 700,
-                  }}
-                >Find</button>
-              </div>
-            )}
-            {memberNotFound && (
-              <div style={{ fontSize: 11, color: '#ff4d4f', marginTop: 5 }}>
-                No member found · <span
-                  style={{ textDecoration: 'underline', cursor: 'pointer', color: '#758650' }}
-                  onClick={() => { setMemberNotFound(false); setMemberPhone('') }}
-                >Clear</span>
-              </div>
-            )}
-          </div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+          {(['cash', 'card', 'qr'] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => setPaymentMethod(m)}
+              style={{
+                flex: 1, padding: '7px 0', borderRadius: 8,
+                border: `1.5px solid ${paymentMethod === m ? '#E8B634' : '#e0e0e0'}`,
+                background: paymentMethod === m ? '#FFE27C' : '#fafafa',
+                color: paymentMethod === m ? '#5a4000' : '#888',
+                fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
+              }}
+            >
+              {m === 'cash' ? '💵' : m === 'card' ? '💳' : '📱'} {m}
+            </button>
+          ))}
+        </div>
 
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <input
-              value={tableNumber}
-              onChange={e => setTableNumber(e.target.value)}
-              placeholder="Table #"
-              type="number"
-              style={inputStyle}
-            />
-            <input
-              value={customerName}
-              onChange={e => setCustomerName(e.target.value)}
-              placeholder="Customer name"
-              style={inputStyle}
-            />
+        <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span>Subtotal</span><span>฿{subtotal.toFixed(0)}</span>
           </div>
-          <input
-            value={discount}
-            onChange={e => setDiscount(e.target.value)}
-            placeholder="Extra discount (฿)"
-            type="number"
-            style={{ ...inputStyle, width: '100%', marginBottom: 8 }}
-          />
-
-          {/* Payment */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-            {(['cash', 'card', 'qr'] as const).map(m => (
-              <button
-                key={m}
-                onClick={() => setPaymentMethod(m)}
-                style={{
-                  flex: 1, padding: '7px 0', borderRadius: 8,
-                  border: `1.5px solid ${paymentMethod === m ? '#E8B634' : '#e0e0e0'}`,
-                  background: paymentMethod === m ? '#FFE27C' : '#fafafa',
-                  color: paymentMethod === m ? '#5a4000' : '#888',
-                  fontSize: 12, fontWeight: 600, textTransform: 'uppercase',
-                }}
-              >
-                {m === 'cash' ? '💵' : m === 'card' ? '💳' : '📱'} {m}
-              </button>
-            ))}
-          </div>
-
-          {/* Totals */}
-          <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-              <span>Subtotal</span><span>฿{subtotal.toFixed(0)}</span>
-            </div>
-            {memberDiscountAmt > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, color: '#758650', fontWeight: 600 }}>
-                <span>Member 10%</span><span>-฿{memberDiscountAmt.toFixed(0)}</span>
-              </div>
-            )}
-            {manualDiscountAmt > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, color: '#B5C267' }}>
-                <span>Discount</span><span>-฿{manualDiscountAmt.toFixed(0)}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-              <span>Tax (7%)</span><span>฿{tax.toFixed(0)}</span>
-            </div>
-          </div>
-          <div style={{
-            display: 'flex', justifyContent: 'space-between', fontWeight: 700,
-            fontSize: 17, color: '#758650', borderTop: '1px solid #f0f0f0',
-            paddingTop: 8, marginBottom: 12,
-          }}>
-            <span>Total</span><span>฿{total.toFixed(0)}</span>
-          </div>
-
-          {submitError && (
-            <div style={{
-              fontSize: 12, color: '#ff4d4f', background: '#fff2f0',
-              border: '1px solid #ffccc7', borderRadius: 8,
-              padding: '8px 12px', marginBottom: 8,
-            }}>
-              {submitError}
+          {memberDiscountAmt > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, color: '#758650', fontWeight: 600 }}>
+              <span>Member 10%</span><span>-฿{memberDiscountAmt.toFixed(0)}</span>
             </div>
           )}
-          <button
-            onClick={handlePlaceOrder}
-            disabled={cart.length === 0 || submitting}
-            style={{
-              width: '100%', padding: '13px', borderRadius: 10,
-              background: cart.length === 0 || submitting ? '#e0e0e0' : '#E8B634',
-              color: cart.length === 0 || submitting ? '#aaa' : '#fff',
-              fontSize: 15, fontWeight: 700, transition: 'all 0.2s',
-            }}
-          >
-            {submitting ? 'Placing…' : 'Place Order'}
-          </button>
+          {manualDiscountAmt > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, color: '#B5C267' }}>
+              <span>Discount</span><span>-฿{manualDiscountAmt.toFixed(0)}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span>Tax (7%)</span><span>฿{tax.toFixed(0)}</span>
+          </div>
+        </div>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', fontWeight: 700,
+          fontSize: 17, color: '#758650', borderTop: '1px solid #f0f0f0',
+          paddingTop: 8, marginBottom: 12,
+        }}>
+          <span>Total</span><span>฿{total.toFixed(0)}</span>
+        </div>
+
+        {submitError && (
+          <div style={{
+            fontSize: 12, color: '#ff4d4f', background: '#fff2f0',
+            border: '1px solid #ffccc7', borderRadius: 8,
+            padding: '8px 12px', marginBottom: 8,
+          }}>
+            {submitError}
+          </div>
+        )}
+        <button
+          onClick={handlePlaceOrder}
+          disabled={cart.length === 0 || submitting}
+          style={{
+            width: '100%', padding: '13px', borderRadius: 10,
+            background: cart.length === 0 || submitting ? '#e0e0e0' : '#E8B634',
+            color: cart.length === 0 || submitting ? '#aaa' : '#fff',
+            fontSize: 15, fontWeight: 700, transition: 'all 0.2s',
+          }}
+        >
+          {submitting ? 'Placing…' : 'Place Order'}
+        </button>
+      </div>
+    </div>
+  )
+
+  // ── Menu panel ─────────────────────────────────────────────────────────────
+  const menuGridCols = isMobile
+    ? 'repeat(auto-fill, minmax(140px, 1fr))'
+    : 'repeat(auto-fill, minmax(160px, 1fr))'
+
+  const MenuPanel = (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ padding: isMobile ? '12px 16px 0' : '20px 24px 0', background: '#F8F9F8' }}>
+        {!isMobile && <h1 style={{ fontSize: 22, fontWeight: 700, color: '#758650', marginBottom: 14 }}>New Order</h1>}
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search menu..."
+          style={{
+            width: '100%', padding: '10px 16px', borderRadius: 10,
+            border: '1.5px solid #C9B6A1', fontSize: 14,
+            background: '#fff', outline: 'none', marginBottom: 14,
+            boxSizing: 'border-box',
+          }}
+        />
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 14 }}>
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              style={{
+                padding: '7px 16px', borderRadius: 20,
+                background: selectedCategory === cat.id ? '#758650' : '#fff',
+                color: selectedCategory === cat.id ? '#fff' : '#758650',
+                border: `1.5px solid ${selectedCategory === cat.id ? '#758650' : '#C9B6A1'}`,
+                fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: 5,
+              }}
+            >
+              {cat.emoji} {cat.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Success Toast */}
+      <div style={{
+        flex: 1, overflowY: 'auto',
+        padding: isMobile ? '12px 16px 16px' : '12px 24px 24px',
+        display: 'grid', gridTemplateColumns: menuGridCols,
+        gap: 12, alignContent: 'start',
+      }}>
+        {filtered.map(item => (
+          <MenuCard
+            key={item.id}
+            item={item}
+            onClick={() => {
+              onAddToCart(item)
+              // On mobile, briefly show cart tab to confirm add
+              if (isMobile) {
+                // stay on menu but user can see count update in tab
+              }
+            }}
+          />
+        ))}
+        {filtered.length === 0 && (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', color: '#C9B6A1', padding: 40, fontSize: 15 }}>
+            No items found
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  // ── Mobile layout: tabs ───────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        {/* Tab bar */}
+        <div style={{
+          display: 'flex', background: '#fff',
+          borderBottom: '1px solid #f0f0f0', flexShrink: 0,
+        }}>
+          <button
+            onClick={() => setMobileView('menu')}
+            style={{
+              flex: 1, padding: '12px 8px', fontSize: 14, fontWeight: mobileView === 'menu' ? 700 : 400,
+              color: mobileView === 'menu' ? '#758650' : '#aaa',
+              borderBottom: mobileView === 'menu' ? '2px solid #758650' : '2px solid transparent',
+              background: 'transparent',
+            }}
+          >
+            🍽️ Menu
+          </button>
+          <button
+            onClick={() => setMobileView('cart')}
+            style={{
+              flex: 1, padding: '12px 8px', fontSize: 14, fontWeight: mobileView === 'cart' ? 700 : 400,
+              color: mobileView === 'cart' ? '#758650' : '#aaa',
+              borderBottom: mobileView === 'cart' ? '2px solid #758650' : '2px solid transparent',
+              background: 'transparent', position: 'relative',
+            }}
+          >
+            🛒 Cart{cartCount > 0 ? ` (${cartCount})` : ''}
+            {cartCount > 0 && mobileView === 'menu' && (
+              <span style={{
+                position: 'absolute', top: 8, right: 'calc(50% - 36px)',
+                background: '#E8B634', color: '#fff', fontSize: 10, fontWeight: 700,
+                borderRadius: 8, padding: '1px 5px', minWidth: 16,
+              }}>
+                {cartCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {mobileView === 'menu' ? MenuPanel : CartPanel}
+        </div>
+
+        {/* Success toast */}
+        {showSuccess && lastOrder && (
+          <div style={{
+            position: 'fixed', bottom: 72, left: '50%', transform: 'translateX(-50%)',
+            background: '#758650', color: '#fff', padding: '12px 24px',
+            borderRadius: 12, fontSize: 14, fontWeight: 600, zIndex: 1000,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)', whiteSpace: 'nowrap',
+          }}>
+            ✓ Order #{lastOrder.orderNumber} — ฿{lastOrder.total}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Desktop / Tablet layout: side by side ─────────────────────────────────
+  return (
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+      {MenuPanel}
+      {CartPanel}
+
       {showSuccess && lastOrder && (
         <div style={{
           position: 'fixed', bottom: 30, left: '50%', transform: 'translateX(-50%)',
@@ -390,8 +457,8 @@ function CartItem({ item, onUpdate }: { item: OrderItem; onUpdate: (id: string, 
     <div style={{ padding: '10px 20px', borderBottom: '1px solid #f8f8f8' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 18 }}>{item.menuItem.emoji}</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 600 }}>{item.menuItem.name}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.menuItem.name}</div>
           <div style={{ fontSize: 12, color: '#C9B6A1' }}>฿{item.menuItem.price} each</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -435,6 +502,7 @@ function CartItem({ item, onUpdate }: { item: OrderItem; onUpdate: (id: string, 
           style={{
             marginTop: 6, width: '100%', padding: '5px 8px',
             borderRadius: 6, border: '1px solid #B5C267', fontSize: 12, outline: 'none',
+            boxSizing: 'border-box',
           }}
         />
       )}

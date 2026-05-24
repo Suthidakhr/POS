@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { StaffAccount, Role } from '../types'
 import * as api from '../api'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 
 const ROLE_LABEL: Record<Role, string> = { manager: 'Manager', cashier: 'Cashier' }
 
@@ -26,11 +27,12 @@ const labelStyle: React.CSSProperties = {
 }
 
 export default function SettingsPage() {
+  const { isMobile } = useBreakpoint()
   const [staff, setStaff] = useState<StaffAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
-  const [editingPin, setEditingPin] = useState<string | null>(null) // staffId being edited
+  const [editingPin, setEditingPin] = useState<string | null>(null)
 
   useEffect(() => {
     api.fetchStaff()
@@ -69,23 +71,22 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '32px 40px', background: '#F8F9F8' }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px 16px' : '32px 40px', background: '#F8F9F8' }}>
       <div style={{ maxWidth: 640 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div style={{
+          display: 'flex', alignItems: isMobile ? 'flex-start' : 'center',
+          justifyContent: 'space-between', marginBottom: 24, gap: 12,
+          flexDirection: isMobile ? 'column' : 'row',
+        }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, color: '#333', margin: 0 }}>Staff Settings</h1>
+            <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color: '#333', margin: 0 }}>Staff Settings</h1>
             <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>Manage staff accounts and PINs</div>
           </div>
           <button
             onClick={() => { setShowAddForm(v => !v); setError('') }}
             style={{
-              padding: '10px 20px',
-              borderRadius: 10,
-              background: '#758650',
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
+              padding: '10px 20px', borderRadius: 10,
+              background: '#758650', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
             }}
           >
             {showAddForm ? '✕ Cancel' : '+ Add Staff'}
@@ -105,19 +106,17 @@ export default function SettingsPage() {
           <AddStaffForm
             onAdd={newStaff => { setStaff(prev => [...prev, newStaff]); setShowAddForm(false) }}
             onError={setError}
+            isMobile={isMobile}
           />
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {staff.map(s => (
             <div key={s.id} style={{
-              background: '#fff',
-              borderRadius: 12,
-              padding: '18px 20px',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-              opacity: s.active ? 1 : 0.6,
+              background: '#fff', borderRadius: 12, padding: '16px 18px',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)', opacity: s.active ? 1 : 0.6,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: '50%',
                   background: s.role === 'manager' ? '#758650' : '#C9B6A1',
@@ -127,9 +126,9 @@ export default function SettingsPage() {
                   {s.name[0].toUpperCase()}
                 </div>
 
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 15, color: '#333' }}>{s.name}</div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{
                       fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                       background: s.role === 'manager' ? '#EEF3E8' : '#F5F0EC',
@@ -138,19 +137,18 @@ export default function SettingsPage() {
                     }}>
                       {ROLE_LABEL[s.role]}
                     </span>
-                    {!s.active && (
-                      <span style={{ fontSize: 11, color: '#CC3333', fontWeight: 600 }}>Inactive</span>
-                    )}
+                    {!s.active && <span style={{ fontSize: 11, color: '#CC3333', fontWeight: 600 }}>Inactive</span>}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
                   <button
                     onClick={() => { setEditingPin(editingPin === s.id ? null : s.id); setError('') }}
                     style={{
                       padding: '7px 14px', borderRadius: 8,
                       background: '#F0F4EB', color: '#758650',
                       fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     Change PIN
@@ -162,6 +160,7 @@ export default function SettingsPage() {
                       background: s.active ? '#FFF3F3' : '#F0F4EB',
                       color: s.active ? '#CC3333' : '#758650',
                       fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {s.active ? 'Deactivate' : 'Reactivate'}
@@ -173,6 +172,7 @@ export default function SettingsPage() {
                 <ChangePinForm
                   onSubmit={(np, cp) => handleChangePinSubmit(s.id, np, cp)}
                   onCancel={() => setEditingPin(null)}
+                  isMobile={isMobile}
                 />
               )}
             </div>
@@ -183,7 +183,7 @@ export default function SettingsPage() {
   )
 }
 
-function AddStaffForm({ onAdd, onError }: { onAdd: (s: StaffAccount) => void; onError: (e: string) => void }) {
+function AddStaffForm({ onAdd, onError, isMobile }: { onAdd: (s: StaffAccount) => void; onError: (e: string) => void; isMobile?: boolean }) {
   const [name, setName] = useState('')
   const [role, setRole] = useState<Role>('cashier')
   const [pin, setPin] = useState('')
@@ -215,13 +215,14 @@ function AddStaffForm({ onAdd, onError }: { onAdd: (s: StaffAccount) => void; on
     }}>
       <div style={{ fontWeight: 700, fontSize: 14, color: '#758650', marginBottom: 16 }}>New Staff Account</div>
       <form onSubmit={handleSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+          gap: 12, marginBottom: 12,
+        }}>
           <div>
             <label style={labelStyle}>Name</label>
-            <input
-              style={inputStyle} value={name}
-              onChange={e => setName(e.target.value)} placeholder="Full name"
-            />
+            <input style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="Full name" />
           </div>
           <div>
             <label style={labelStyle}>Role</label>
@@ -264,17 +265,17 @@ function AddStaffForm({ onAdd, onError }: { onAdd: (s: StaffAccount) => void; on
   )
 }
 
-function ChangePinForm({ onSubmit, onCancel }: { onSubmit: (np: string, cp: string) => void; onCancel: () => void }) {
+function ChangePinForm({ onSubmit, onCancel, isMobile }: { onSubmit: (np: string, cp: string) => void; onCancel: () => void; isMobile?: boolean }) {
   const [newPin, setNewPin] = useState('')
   const [confirmPin, setConfirmPin] = useState('')
 
   return (
     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #F0F0F0' }}>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         <div>
           <label style={labelStyle}>New PIN</label>
           <input
-            style={{ ...inputStyle, width: 100 }} type="password" inputMode="numeric"
+            style={{ ...inputStyle, width: isMobile ? '100%' : 100 }} type="password" inputMode="numeric"
             maxLength={4} value={newPin}
             onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))}
             placeholder="••••"
@@ -283,30 +284,26 @@ function ChangePinForm({ onSubmit, onCancel }: { onSubmit: (np: string, cp: stri
         <div>
           <label style={labelStyle}>Confirm PIN</label>
           <input
-            style={{ ...inputStyle, width: 100 }} type="password" inputMode="numeric"
+            style={{ ...inputStyle, width: isMobile ? '100%' : 100 }} type="password" inputMode="numeric"
             maxLength={4} value={confirmPin}
             onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ''))}
             placeholder="••••"
           />
         </div>
-        <button
-          onClick={() => onSubmit(newPin, confirmPin)}
-          style={{
-            padding: '10px 18px', borderRadius: 8,
-            background: '#758650', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-          }}
-        >
-          Save
-        </button>
-        <button
-          onClick={onCancel}
-          style={{
-            padding: '10px 14px', borderRadius: 8,
-            background: '#F0F0F0', color: '#666', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-          }}
-        >
-          Cancel
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => onSubmit(newPin, confirmPin)}
+            style={{ padding: '10px 18px', borderRadius: 8, background: '#758650', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Save
+          </button>
+          <button
+            onClick={onCancel}
+            style={{ padding: '10px 14px', borderRadius: 8, background: '#F0F0F0', color: '#666', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   )

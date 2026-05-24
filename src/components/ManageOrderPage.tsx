@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Order, OrderStatus } from '../types'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 
 interface Props {
   orders: Order[]
@@ -16,8 +17,8 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: str
 }
 
 const tabs: { id: string; label: string; statuses: OrderStatus[] }[] = [
-  { id: 'active', label: 'Active', statuses: ['pending', 'preparing', 'ready'] },
-  { id: 'done',   label: 'Completed', statuses: ['completed'] },
+  { id: 'active', label: 'Active',     statuses: ['pending', 'preparing', 'ready'] },
+  { id: 'done',   label: 'Completed',  statuses: ['completed'] },
   { id: 'all',    label: 'All Orders', statuses: ['pending', 'preparing', 'ready', 'completed', 'cancelled'] },
 ]
 
@@ -33,6 +34,7 @@ function elapsed(d: Date) {
 }
 
 export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder }: Props) {
+  const { isMobile } = useBreakpoint()
   const [activeTab, setActiveTab] = useState('active')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -40,12 +42,15 @@ export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder 
   const tab = tabs.find(t => t.id === activeTab)!
   const filtered = orders.filter(o => tab.statuses.includes(o.status))
 
+  const hPad = isMobile ? '14px 16px' : '20px 28px'
+  const listPad = isMobile ? '12px 16px' : '16px 28px'
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#F8F9F8' }}>
       {/* Header */}
-      <div style={{ padding: '20px 28px 0', background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#758650', marginBottom: 14 }}>Manage Orders</h1>
-        <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{ padding: hPad, paddingBottom: 0, background: '#fff', borderBottom: '1px solid #f0f0f0' }}>
+        <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, color: '#758650', marginBottom: 12 }}>Manage Orders</h1>
+        <div style={{ display: 'flex', gap: 4, overflowX: 'auto' }}>
           {tabs.map(t => {
             const count = orders.filter(o => t.statuses.includes(o.status)).length
             return (
@@ -53,20 +58,24 @@ export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder 
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
                 style={{
-                  padding: '9px 20px',
+                  padding: isMobile ? '8px 14px' : '9px 20px',
                   borderRadius: '8px 8px 0 0',
                   background: activeTab === t.id ? '#F8F9F8' : 'transparent',
                   color: activeTab === t.id ? '#758650' : '#aaa',
                   fontWeight: activeTab === t.id ? 700 : 400,
-                  fontSize: 14,
+                  fontSize: isMobile ? 13 : 14,
                   borderBottom: activeTab === t.id ? '2px solid #758650' : '2px solid transparent',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {t.label} {count > 0 && <span style={{
-                  background: activeTab === t.id ? '#758650' : '#e0e0e0',
-                  color: activeTab === t.id ? '#fff' : '#888',
-                  borderRadius: 10, padding: '1px 7px', fontSize: 11, marginLeft: 4,
-                }}>{count}</span>}
+                {t.label}{' '}
+                {count > 0 && (
+                  <span style={{
+                    background: activeTab === t.id ? '#758650' : '#e0e0e0',
+                    color: activeTab === t.id ? '#fff' : '#888',
+                    borderRadius: 10, padding: '1px 7px', fontSize: 11, marginLeft: 4,
+                  }}>{count}</span>
+                )}
               </button>
             )
           })}
@@ -74,26 +83,22 @@ export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder 
       </div>
 
       {/* Order List */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 28px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: listPad }}>
         {filtered.length === 0 && (
           <div style={{ textAlign: 'center', color: '#C9B6A1', padding: '60px 0', fontSize: 15 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
             No orders here
           </div>
         )}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(340px, 1fr))', gap: 14 }}>
           {filtered.map(order => {
             const cfg = STATUS_CONFIG[order.status]
             const expanded = expandedId === order.id
             return (
               <div key={order.id} style={{
-                background: '#fff',
-                borderRadius: 14,
-                border: '1.5px solid #f0f0f0',
-                overflow: 'hidden',
-                boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
+                background: '#fff', borderRadius: 14, border: '1.5px solid #f0f0f0',
+                overflow: 'hidden', boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
               }}>
-                {/* Card Header */}
                 <div
                   style={{ padding: '14px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
                   onClick={() => setExpandedId(expanded ? null : order.id)}
@@ -105,16 +110,16 @@ export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder 
                   }}>
                     #{order.orderNumber}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#2d2d2d' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#2d2d2d', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {order.customerName || `Order #${order.orderNumber}`}
-                      {order.tableNumber && <span style={{ color: '#C9B6A1', fontWeight: 400, fontSize: 12 }}> · Table {order.tableNumber}</span>}
+                      {order.tableNumber && <span style={{ color: '#C9B6A1', fontWeight: 400, fontSize: 12 }}> · T{order.tableNumber}</span>}
                     </div>
                     <div style={{ fontSize: 12, color: '#C9B6A1', marginTop: 2 }}>
                       {formatTime(order.createdAt)} · {elapsed(order.createdAt)} · {order.items.reduce((s, i) => s + i.quantity, 0)} items
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, flexShrink: 0 }}>
                     <span style={{
                       background: cfg.bg, color: cfg.color,
                       borderRadius: 8, padding: '3px 10px', fontSize: 11, fontWeight: 700,
@@ -123,14 +128,10 @@ export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder 
                   </div>
                 </div>
 
-                {/* Expanded Items */}
                 {expanded && (
                   <div style={{ borderTop: '1px solid #f8f8f8', padding: '10px 18px' }}>
                     {order.items.map((item, i) => (
-                      <div key={i} style={{
-                        display: 'flex', justifyContent: 'space-between', padding: '4px 0',
-                        fontSize: 13, color: '#555',
-                      }}>
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, color: '#555' }}>
                         <span>{item.menuItem.emoji} {item.menuItem.name} ×{item.quantity}{item.note && <span style={{ color: '#C9B6A1' }}> ({item.note})</span>}</span>
                         <span>฿{item.menuItem.price * item.quantity}</span>
                       </div>
@@ -144,12 +145,8 @@ export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder 
                   </div>
                 )}
 
-                {/* Actions */}
                 {order.status !== 'completed' && order.status !== 'cancelled' && (
-                  <div style={{
-                    padding: '10px 18px', borderTop: '1px solid #f8f8f8',
-                    display: 'flex', gap: 8,
-                  }}>
+                  <div style={{ padding: '10px 18px', borderTop: '1px solid #f8f8f8', display: 'flex', gap: 8 }}>
                     {cfg.next && (
                       <button
                         disabled={busyId === order.id}
@@ -190,9 +187,7 @@ export default function ManageOrderPage({ orders, onUpdateStatus, onDeleteOrder 
                         setBusyId(order.id)
                         await onDeleteOrder(order.id).finally(() => setBusyId(null))
                       }}
-                      style={{
-                        fontSize: 12, color: '#C9B6A1', background: 'none', textDecoration: 'underline'
-                      }}
+                      style={{ fontSize: 12, color: '#C9B6A1', background: 'none', textDecoration: 'underline' }}
                     >
                       {busyId === order.id ? 'Removing…' : 'Remove'}
                     </button>
