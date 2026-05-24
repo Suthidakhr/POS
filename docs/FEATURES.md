@@ -1,6 +1,6 @@
 # Shesha Cafe POS — Feature Inventory
 
-> Generated: 2026-05-23 | Codebase: React 18 + TypeScript (frontend) · Express + PostgreSQL (backend, optional)
+> Last updated: 2026-05-24 | Stack: React 18 + TypeScript (frontend) · Express + PostgreSQL/Neon (backend)
 
 ---
 
@@ -8,16 +8,17 @@
 
 | # | Feature | Current Status | Missing Parts | Technical Risk |
 |---|---------|---------------|---------------|----------------|
-| 1 | [New Order](#1-new-order) | ✅ Complete | Receipt print, split bill, item customization (size/temp), barcode scan, order edit after submit | **Medium** — `orderCounter` is a module-level var (resets on reload); `api.ts` exists but is dead code, not wired into `App.tsx` |
-| 2 | [Manage Orders](#2-manage-orders) | ✅ Complete | Real-time push/polling, kitchen display mode, sound alerts for new orders, order editing, "cancelled" tab | **High** — elapsed time display is static (no re-render timer); no auto-refresh means kitchen staff miss new orders silently |
-| 3 | [Menu Management](#3-menu-management) | ✅ Complete | Image/photo upload (emoji only), new category creation, price history, bulk toggle availability, drag-to-reorder | **Medium** — menu changes are in-memory only; `api.ts` CRUD calls exist but `App.tsx` never imports them |
-| 4 | [Membership](#4-membership) | ✅ Complete | Member edit (name/phone/email), membership tiers, points/rewards system, order history per member, bulk import/CSV | **Low-Medium** — phone lookup is exact-match only; deleting a member silently nullifies linked order records (`ON DELETE SET NULL` in DB) |
-| 5 | [Sales Summary](#5-sales-summary) | ✅ Complete | Date range picker, CSV/PDF export, trend comparison (period vs prior period), member analytics, profit margin, daily/weekly breakdown | **Low** — all aggregation computed on every render from in-memory state; hourly chart bar height is pixel-hardcoded (`max 80px`), breaks with very high revenue |
-| 6 | [Backend API](#6-backend-api) | ⚠️ Partial | **Frontend never calls the API** — `App.tsx` uses in-memory state only; `api.ts` is completely unused | **Critical** — `server/server.js` and `src/api.ts` are implemented but disconnected; all data is lost on page refresh |
-| 7 | [Data Persistence](#7-data-persistence) | ❌ Missing | No localStorage fallback; no backend integration from frontend; seed data hardcoded in `App.tsx` | **Critical** — every page reload wipes all orders, members, and menu changes |
-| 8 | [Authentication / Authorization](#8-authentication--authorization) | ❌ Missing | Login screen, role management (cashier / manager / admin), session handling, protected routes | **Critical** — any user can access all pages including sales data and menu edits |
-| 9 | [Receipt / Print](#9-receipt--print) | ❌ Missing | Receipt generation (HTML/PDF), thermal printer support, email/SMS receipt to customer | **Medium** — no print layout exists; adding one requires careful CSS `@media print` or a PDF library |
-| 10 | [Sidebar Navigation](#10-sidebar-navigation) | ✅ Complete | Active-order badge shows all statuses (could filter to pending+preparing only) | **Low** — badge count loops all orders on every render; fine at current scale |
+| 1 | [New Order](#1-new-order) | ✅ Complete | Receipt print, split bill, item customization (size/temp), barcode scan, order edit after submit | **Low** — fully wired to backend API; orders persist to PostgreSQL |
+| 2 | [Manage Orders](#2-manage-orders) | ✅ Complete | Real-time push/polling, kitchen display mode, sound alerts, order editing, "cancelled" tab | **Medium** — no polling/WebSocket; elapsed time display is static (no re-render timer) |
+| 3 | [Menu Management](#3-menu-management) | ✅ Complete | Image/photo upload (emoji only), new category creation, price history, bulk toggle, drag-to-reorder | **Low** — all CRUD operations fully wired to API; menu changes persist to DB |
+| 4 | [Membership](#4-membership) | ✅ Complete | Member edit (name/phone/email), membership tiers, points/rewards system, order history per member, bulk CSV | **Low** — phone lookup is exact-match only; deleting a member sets `member_id = null` on linked orders |
+| 5 | [Sales Summary](#5-sales-summary) | ✅ Complete | Date range picker, CSV/PDF export, trend comparison, member analytics, profit margin, daily/weekly breakdown | **Low** — hourly chart bar height is pixel-capped at 80px; all aggregation computed on every render |
+| 6 | [Backend API](#6-backend-api) | ✅ Complete | Rate limiting, request validation/sanitization | **Low** — fully connected; all frontend actions go through `src/api.ts` → Express → PostgreSQL |
+| 7 | [Data Persistence](#7-data-persistence) | ✅ Complete | — | **Low** — PostgreSQL on Neon; schema auto-created on startup; seed data loads once |
+| 8 | [Authentication / Authorization](#8-authentication--authorization) | ✅ Complete | Admin role, PIN change from UI, account deactivation UI | **Low** — JWT sessions via HTTP-only cookie; role-based route access enforced |
+| 9 | [Receipt / Print](#9-receipt--print) | ❌ Missing | Receipt generation (HTML/PDF), thermal printer support, email/SMS receipt | **Medium** — no print layout exists; needs CSS `@media print` or PDF library |
+| 10 | [Sidebar Navigation](#10-sidebar-navigation) | ✅ Complete | Keyboard navigation / accessibility attributes | **Low** — role-filtered nav fully implemented; badge count is O(n) over a small array |
+| 11 | [Settings / Staff Management](#11-settings--staff-management) | ✅ Complete | PIN change from UI | **Low** — managers can create/edit staff accounts and assign roles |
 
 ---
 
@@ -27,12 +28,13 @@
 **File:** `src/components/OrderPage.tsx`
 
 **What works:**
-- Browse 26 menu items in a grid; search by name; filter by category chip
+- Browse all menu items in a grid; search by name; filter by category chip
 - Add to cart, adjust quantity, add per-item text note
 - Member lookup by phone number → auto-applies 10% discount
 - Manual extra discount field (capped at remaining subtotal)
 - Payment method: Cash / Card / QR
-- 7% tax calculation; live subtotal/total
+- 7% Thai VAT calculation on post-discount amount; live subtotal/total
+- Order submitted via `POST /api/orders` — persisted to PostgreSQL
 - Success toast with order number and savings amount
 
 **Missing:**
@@ -41,8 +43,6 @@
 - No way to edit an order after it is placed
 - No receipt printed or emailed at checkout
 - No barcode/QR scanner for fast item lookup
-
-**Technical risk:** `orderCounter` is a module-level `let` in `App.tsx:11` — resets to 5 every reload. The `api.ts` file (`src/api.ts`) has all the API calls needed to persist orders but is **never imported** in `App.tsx`.
 
 ---
 
@@ -56,15 +56,14 @@
 - Cancel at any active stage
 - Expand card to see full item list, discounts, tax, payment method
 - Remove completed/cancelled orders from board
+- Status changes call `PUT /api/orders/:id/status` and persist
 
 **Missing:**
-- No real-time updates — new orders from the Order page only appear because they share the same React state; a second browser tab or a different device will not see them
-- Elapsed time display (`ManageOrderPage.tsx:28–33`) is calculated once at render and never ticks
+- No real-time updates — changes from another browser tab or device require a page refresh
+- Elapsed time display is calculated once at render and never ticks
 - No kitchen display (KDS) mode — full-screen, auto-sorted by urgency
 - No sound or visual alert when a new pending order arrives
 - No ability to modify an order once placed
-
-**Technical risk:** Without a polling or WebSocket mechanism, the kitchen has no live view. This is acceptable for a single-device setup but breaks entirely in multi-device use.
 
 ---
 
@@ -75,17 +74,15 @@
 - Searchable, filterable table of all items
 - Toggle `available` flag inline (hides/shows on Order page instantly)
 - Edit any field: name, price, category, emoji, description
-- Add new item with a free-text emoji picker
-- Delete with inline confirmation
+- Add new item; delete with inline confirmation
+- All changes call the API (`POST/PUT/DELETE /api/menu`) and persist to DB
 
 **Missing:**
 - No photo upload — only emoji; no image URL field
-- Cannot add new categories (hardcoded: coffee, tea, smoothie, food, bakery in `src/types/index.ts:1`)
+- Cannot add new categories (hardcoded: coffee, tea, smoothie, food, bakery)
 - No price history or audit log
-- No bulk availability toggle (e.g., "hide all bakery items")
+- No bulk availability toggle
 - No drag-to-reorder within a category
-
-**Technical risk:** `handleAddNew` generates an ID with `Math.random()` (`MenuManagePage.tsx:36`). The backend uses its own `genId()` — these would collide if the API were ever wired up. `api.ts` exports `updateMenuItem`, `createMenuItem`, `deleteMenuItem` but `App.tsx` uses local callbacks only.
 
 ---
 
@@ -93,11 +90,10 @@
 **File:** `src/components/MembershipPage.tsx`
 
 **What works:**
-- Register members with name, phone (unique), optional email
+- Register members with name, phone (unique), optional email via `POST /api/members`
 - Search by name or phone
-- View per-member stats: total orders and total spent
-- Stats update atomically when an order is placed (`App.tsx:126–131`)
-- Delete with two-step confirmation
+- View per-member stats: total orders and total spent (kept in sync by order creation transaction)
+- Delete with two-step confirmation; calls `DELETE /api/members/:id`
 - Membership badge on sidebar showing total count
 
 **Missing:**
@@ -107,7 +103,7 @@
 - No per-member order history page
 - No bulk CSV import or export
 
-**Technical risk:** Phone lookup is exact-match (`App.tsx:178`). A trailing space or different format fails silently and shows "No member found." In the database schema, `ON DELETE SET NULL` means deleting a member leaves orphaned order records with `member_id = null` and no discount rollback.
+**Technical note:** Phone lookup uses exact-match. `ON DELETE SET NULL` in DB means deleting a member leaves orders with `member_id = null` — no discount rollback.
 
 ---
 
@@ -130,62 +126,65 @@
 - No period-over-period comparison (e.g., today vs. yesterday)
 - No member-specific analytics (top spenders, discount totals)
 - No profit margin or cost tracking
-- Summary is read-only; no drill-down into individual items from the chart
-
-**Technical risk:** The hourly bar height is computed as `pct * 80` pixels (`SummaryPage.tsx:129`). With large revenue values this is fine, but the 80px max cap means all bars look similar in busy periods. All aggregations are recalculated on every render from the full orders array — acceptable for current seed data, would slow down with thousands of orders.
 
 ---
 
 ### 6. Backend API
-**Files:** `server/server.js`, `src/api.ts`
+**Files:** `server/server.js`, `server/db.js`, `server/routes/`
 
-**What works (server only):**
-- Express + PostgreSQL with auto-schema creation on startup
-- Full CRUD: GET/POST/PUT/DELETE for menu items, members, orders
-- Transactional order creation (order + order_items + member stats update in one transaction)
+**What works:**
+- Express + PostgreSQL with auto-schema creation on startup via `initDB()`
+- Full CRUD: `GET/POST/PUT/DELETE` for menu items, members, orders
+- Transactional order creation (order + order_items + member stats update in one `BEGIN/COMMIT`)
 - Seed data loads automatically if `menu_items` table is empty
-- `member_discount` stored separately from manual `discount`
-- `order_items` stores a snapshot of item name/price at time of order (safe against menu edits)
+- `order_items` snapshots item name/price/emoji/category at time of order (immune to later menu edits)
+- Route structure: `server/routes/menu.js`, `orders.js`, `members.js`, `auth.js`, `staff.js`
+- Auth routes: `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `GET /api/auth/staff`
+- Session handling: JWT stored in HTTP-only cookie; `credentials: 'include'` on all API calls
+- All frontend actions flow through `src/api.ts` → `/api/...` proxy → Express → Neon PostgreSQL
 
-**What is missing / broken:**
-- `src/api.ts` is **never imported** in `App.tsx` — the entire API layer is dead code
-- No CORS configuration (would fail in production with a separate frontend domain)
-- No request validation or sanitization on the Express routes
-- No authentication on any API endpoint
+**Missing:**
+- No request validation or sanitization on Express routes
 - No rate limiting
-- `railway.toml` references deployment but there is no CI/CD pipeline
-
-**Technical risk — Critical:** The disconnect between `App.tsx` (in-memory) and `server/server.js` (PostgreSQL) means the project has two complete but incompatible data layers. Wiring them together requires replacing all `useState` callbacks in `App.tsx` with `async` API calls and handling loading/error states that do not currently exist.
+- No CORS configuration (same-origin in production via Express static serving)
 
 ---
 
 ### 7. Data Persistence
-**What works:** Nothing persists beyond the current browser session.
+**What works:**
+- All orders, menu changes, and members persist to PostgreSQL on Neon
+- Database connection via `DATABASE_URL` env var in `server/.env`
+- Schema is created idempotently by `initDB()` on every server start — no migration tool needed
+- `App.tsx` loads all startup data in a single `Promise.all([fetchMenu(), fetchOrders(), fetchMembers()])` on login
+- Optimistic local state updates after mutations; no full re-fetch needed
 
-**What is missing:**
-- No `localStorage` / `sessionStorage` fallback for in-memory state
-- `App.tsx` seed data (`SEED_ORDERS`, `SEED_MEMBERS`) is hardcoded and resets every reload
-- Backend exists but frontend does not call it (see [Backend API](#6-backend-api))
-
-**Technical risk — Critical:** All orders placed, members added, and menu changes made during a session are lost on refresh. This is acceptable for a demo but is a blocker for production use.
+**Missing:** Nothing critical for production use.
 
 ---
 
 ### 8. Authentication / Authorization
-**What works:** Nothing — the app opens directly to the Order page with no login.
+**Files:** `src/components/LoginPage.tsx`, `server/routes/auth.js`, `server/routes/staff.js`
 
-**What is missing:**
-- Login screen (PIN or username/password)
-- Role-based access: Cashier (order + manage), Manager (+ menu + members + summary), Admin (everything)
-- Session persistence (JWT or cookie)
-- Protected routes per role
+**What works:**
+- Login screen: staff selects their name from a dropdown, enters a 4-digit PIN
+- `POST /api/auth/login` validates PIN and issues a JWT in an HTTP-only cookie
+- `GET /api/auth/me` restores session on page reload — no re-login required after refresh
+- `POST /api/auth/logout` clears the cookie
+- Two roles: **Cashier** (New Order + Manage Orders only) and **Manager** (all pages)
+- Navigation guard in `App.tsx:navigate()` — cashiers cannot reach restricted pages
+- Sidebar filtered by role via `ALL_NAV` array with `roles` field per nav item
+- Staff accounts have `active` flag; inactive accounts cannot log in
+- `GET /api/auth/staff` returns names only (no PINs) for the login dropdown
 
-**Technical risk — Critical:** Sales summary, member data, and menu prices are accessible to anyone who opens the URL.
+**Missing:**
+- Admin role (super-manager who can manage other managers)
+- PIN change from the UI (requires server support)
+- Account deactivation UI (data model supports it; no frontend yet)
 
 ---
 
 ### 9. Receipt / Print
-**What works:** Nothing — only a success toast is shown after placing an order.
+**What works:** Only a success toast is shown after placing an order.
 
 **What is missing:**
 - Printable receipt layout (HTML or PDF)
@@ -201,15 +200,32 @@
 **File:** `src/components/Sidebar.tsx`
 
 **What works:**
-- Five navigation items: New Order, Manage Orders, Menu, Summary, Members
-- Active-order badge (pending + preparing + ready count) on Manage Orders
-- Member count badge on Membership
+- Nav items filtered by logged-in user's role at render time (`ALL_NAV.filter(item => item.roles.includes(user.role))`)
+- Cashier sees: New Order, Manage Orders
+- Manager sees: New Order, Manage Orders, Menu, Members, Summary, Settings
+- Three responsive layouts: desktop (220px full sidebar), tablet (64px icon-only), mobile (top bar + bottom nav)
+- Active-order badge (pending + preparing) on Manage Orders
+- Member count badge on Membership (desktop + tablet only)
+- Logged-in user name, role label, and Sign Out button shown in all layouts
 
 **Missing:**
-- Active badge includes `ready` orders — kitchen staff may want "ready" to display separately or not count as urgent
 - No keyboard navigation / accessibility attributes (`aria-current`, focus management)
 
-**Technical risk — Low:** Badge count (`orders.filter(...)`) runs on every render but is O(n) over a small array.
+---
+
+### 11. Settings / Staff Management
+**File:** `src/components/SettingsPage.tsx`
+
+**What works:**
+- Manager-only page (Cashier role cannot navigate here)
+- View all staff accounts with name, role, and active status
+- Add new staff account with name, role, and PIN via `POST /api/staff`
+- Edit existing staff (name, role, active status) via `PUT /api/staff/:id`
+- Staff data fetched from `GET /api/staff`
+
+**Missing:**
+- No PIN change from the UI — staff must ask manager to reset via DB directly
+- No account deactivation toggle (data model supports `active` flag)
 
 ---
 
@@ -217,12 +233,13 @@
 
 | Layer | Status |
 |-------|--------|
-| UI / Frontend pages | ✅ 5/5 complete |
+| UI / Frontend pages | ✅ 6/6 complete (+ Login) |
 | In-memory state management | ✅ Fully functional |
-| Backend server (Express + PG) | ✅ Implemented |
-| Frontend ↔ Backend integration | ❌ Not connected |
-| Data persistence | ❌ None (in-memory only) |
-| Authentication | ❌ Not implemented |
+| Backend server (Express + PG) | ✅ Complete |
+| Frontend ↔ Backend integration | ✅ Fully connected |
+| Data persistence (Neon PostgreSQL) | ✅ Complete |
+| Authentication (JWT + session) | ✅ Complete |
+| Role-based access (Cashier / Manager) | ✅ Complete |
 | Receipt / Print | ❌ Not implemented |
 | Tests (unit / e2e) | ❌ None |
-| Error handling (API errors) | ❌ None in UI |
+| Error handling (API errors) | ✅ Basic (inline error states, retry) |
