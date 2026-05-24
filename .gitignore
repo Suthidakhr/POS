@@ -7,6 +7,10 @@ server/node_modules/
 
 # BMAD personal settings (regenerated per user on install)
 *.user.toml
+.agents/
+skills-lock.json
+.claude/settings.local.json
+.claude/skills/neon-postgres/
 
 # Server secrets — never commit
 server/.env
