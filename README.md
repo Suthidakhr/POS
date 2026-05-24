@@ -5,7 +5,7 @@
 # Shesha Cafe POS
 
 **A modern, full-featured Point of Sale system built for cafes**  
-Clean UI · PostgreSQL persistence · Member discounts · Real-time sales summary
+Clean UI · PostgreSQL persistence · Role-based auth · Member discounts · Real-time sales summary
 
 [![React](https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
@@ -14,6 +14,26 @@ Clean UI · PostgreSQL persistence · Member discounts · Real-time sales summar
 [![Express](https://img.shields.io/badge/Express-4.19-000000?style=flat-square&logo=express)](https://expressjs.com)
 
 </div>
+
+---
+
+## Screenshots
+
+| Login | New Order |
+|-------|-----------|
+| ![Login](docs/screenshots/00-login.png) | ![New Order](docs/screenshots/01-order.png) |
+
+| Manage Orders | Menu Management |
+|---------------|-----------------|
+| ![Manage Orders](docs/screenshots/02-manage.png) | ![Menu Management](docs/screenshots/03-menu.png) |
+
+| Members | Sales Summary |
+|---------|---------------|
+| ![Members](docs/screenshots/04-members.png) | ![Sales Summary](docs/screenshots/05-summary.png) |
+
+| Staff Settings |
+|----------------|
+| ![Staff Settings](docs/screenshots/06-settings.png) |
 
 ---
 
@@ -54,6 +74,8 @@ Browser (React SPA :5173)
 | HTTP Framework | Express | 4.19 |
 | Database Client | node-postgres (`pg`) | 8.12 |
 | Database | PostgreSQL | 16 |
+| Authentication | jsonwebtoken + bcrypt | — |
+| Session | httpOnly cookie (JWT, 24 h) | — |
 | Configuration | dotenv | 16 |
 
 ### Developer Tools
@@ -113,6 +135,21 @@ Browser (React SPA :5173)
 - Revenue by category with colour-coded bars
 - Recent 10 completed orders table
 
+### Authentication & Access Control
+- Login screen with staff name dropdown and 4-digit PIN entry
+- Two roles: **Cashier** (Order + Manage Orders) and **Manager** (all pages)
+- Session persists across reloads via httpOnly JWT cookie (24-hour expiry)
+- Lockout after 5 consecutive failed PIN attempts (15 minutes)
+- Logout clears the session cookie server-side
+- Role-filtered sidebar — restricted links are hidden, not just disabled
+
+### Staff Settings *(Manager only)*
+- View all staff accounts with role and active/inactive status
+- Add new Cashier or Manager accounts (name, role, PIN with confirmation)
+- Change PIN for any account
+- Deactivate accounts to block login without deleting history
+- Default Manager account (PIN: `1234`) seeded on first deploy
+
 ---
 
 ## 4. Setup Instructions
@@ -146,12 +183,15 @@ cd server && npm install && cd ..
 cp server/.env.example server/.env
 ```
 
-Open `server/.env` and set your database connection string (see **Section 5** for details):
+Open `server/.env` and fill in your values:
 
 ```env
 DATABASE_URL=postgresql://<user>@localhost:5432/cafe_pos
 PORT=3001
+JWT_SECRET=change-this-to-a-long-random-string
 ```
+
+> **Important:** `JWT_SECRET` must be set — the server refuses to start without it. Use any long random string in development; generate a strong secret for production (e.g. `openssl rand -hex 32`).
 
 ### Start
 
@@ -165,8 +205,7 @@ npm run dev:all
 | http://localhost:5173 | React frontend |
 | http://localhost:3001 | Express API |
 
-The server auto-creates all tables and seeds the 26 menu items on first run.
-Open http://localhost:5173 — the app shows **"Connecting to database…"** briefly, then loads live data.
+The server auto-creates all tables, seeds the 26 menu items, and creates a default Manager account (PIN: `1234`) on first run. Open http://localhost:5173 — log in as **Manager** with PIN `1234` to get started.
 
 ### Other scripts
 
@@ -230,6 +269,7 @@ Four tables are created automatically:
 | `members` | Registered members and their lifetime stats |
 | `orders` | Order header — totals, payment method, status, timestamps |
 | `order_items` | Line items — stores a price/name snapshot at order time |
+| `staff` | Staff accounts — name, bcrypt PIN hash, role, active flag |
 
 Relationships:
 
@@ -281,7 +321,6 @@ The following gaps are known and documented with fix plans in
 
 | Limitation | Impact | Priority |
 |------------|--------|----------|
-| **No authentication** | Any user who opens the URL has full access to sales data, menu edits, and member records | High |
 | **No real-time order updates** | A second device or browser tab does not receive new orders without a manual refresh — kitchen display will miss orders | High |
 | **No receipt or print support** | No printable receipt, thermal printer integration, or digital receipt (email / SMS) | Medium |
 | **No API input validation** | Express routes do not validate request bodies — malformed payloads reach PostgreSQL unchecked | Medium |
@@ -298,31 +337,36 @@ The following gaps are known and documented with fix plans in
 ```
 POS/
 ├── src/
-│   ├── api.ts                       # Typed fetch client for all REST endpoints
-│   ├── App.tsx                      # Root — shared state + async API callbacks
-│   ├── types/index.ts               # TypeScript interfaces (MenuItem, Order, Member…)
-│   ├── data/menu.ts                 # Category list + fallback seed data
+│   ├── api.ts                       # Typed fetch client for all REST endpoints + auth
+│   ├── App.tsx                      # Root — auth state, session check, page routing
+│   ├── types/index.ts               # TypeScript interfaces (MenuItem, Order, Member, AuthUser…)
+│   ├── data/menu.ts                 # Category list
 │   └── components/
-│       ├── Sidebar.tsx              # Navigation + live badges
+│       ├── LoginPage.tsx            # Login screen — name dropdown + PIN entry
+│       ├── Sidebar.tsx              # Role-filtered navigation + user chip + logout
 │       ├── OrderPage.tsx            # New order — menu grid + cart
 │       ├── ManageOrderPage.tsx      # Order status board
 │       ├── MenuManagePage.tsx       # Menu CRUD
 │       ├── MembershipPage.tsx       # Member registration + list
-│       └── SummaryPage.tsx          # Sales analytics
+│       ├── SummaryPage.tsx          # Sales analytics
+│       └── SettingsPage.tsx         # Staff account management (Manager only)
 │
 ├── server/
-│   ├── server.js                    # Express API + schema init + seed
-│   ├── .env                         # DATABASE_URL (gitignored)
-│   └── .env.example                 # Template for new installs
+│   ├── server.js                    # Express entry — JWT guard + route wiring
+│   ├── db.js                        # DB pool, schema init, seed, row mappers
+│   ├── middleware/
+│   │   └── auth.js                  # requireAuth — verifies httpOnly JWT cookie
+│   ├── routes/
+│   │   ├── auth.js                  # POST /login, POST /logout, GET /me, GET /staff
+│   │   ├── staff.js                 # Manager-only staff CRUD
+│   │   ├── menu.js                  # Menu item CRUD
+│   │   ├── members.js               # Member CRUD + phone lookup
+│   │   └── orders.js                # Order creation, status, delete
+│   ├── .env                         # DATABASE_URL + JWT_SECRET (gitignored)
+│   └── package.json
 │
-├── _bmad-output/
-│   └── planning-artifacts/
-│       ├── architecture.md          # Full system architecture overview
-│       ├── schema.sql               # Target schema design (reference)
-│       └── schema-improvements.md  # DB integrity fix roadmap
-│
-├── docs/screenshots/                # UI screenshots
-├── scripts/capture-screenshots.js  # Puppeteer screenshot helper
+├── docs/screenshots/                # UI screenshots (7 pages)
+├── scripts/capture-screenshots.cjs  # Puppeteer screenshot helper
 ├── vite.config.ts                   # Vite config with /api proxy
 └── package.json
 ```
