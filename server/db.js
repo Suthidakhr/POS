@@ -1,7 +1,10 @@
 const { Pool } = require('pg')
 const bcrypt = require('bcrypt')
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : false
+})
 
 function genId() {
   return Math.random().toString(36).slice(2, 9)

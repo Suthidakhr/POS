@@ -1,6 +1,7 @@
 require('dotenv').config()
 const express = require('express')
 const cookieParser = require('cookie-parser')
+const path = require('path')
 const { initDB } = require('./db')
 const requireAuth = require('./middleware/auth')
 
@@ -22,6 +23,13 @@ app.use('/api/menu',    require('./routes/menu'))
 app.use('/api/members', require('./routes/members'))
 app.use('/api/orders',  require('./routes/orders'))
 app.use('/api/staff',   require('./routes/staff'))
+
+// Serve frontend in production
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '../dist')
+  app.use(express.static(distPath))
+  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')))
+}
 
 app.use((err, req, res, _next) => {
   console.error(err.message)
