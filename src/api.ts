@@ -34,14 +34,6 @@ export const deleteMenuItem = (id: string): Promise<void> =>
 export const fetchMembers = (): Promise<Member[]> =>
   req('/members')
 
-export const findMemberByPhone = async (phone: string): Promise<Member | undefined> => {
-  try {
-    return await req<Member>(`/members/phone/${encodeURIComponent(phone)}`)
-  } catch {
-    return undefined
-  }
-}
-
 export const createMember = (data: { name: string; phone: string; email?: string }): Promise<Member> =>
   req('/members', { method: 'POST', body: JSON.stringify(data) })
 
