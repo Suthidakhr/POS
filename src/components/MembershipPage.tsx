@@ -261,7 +261,7 @@ function MemberCard({ member, confirmDelete, onDelete, onConfirmDelete, onCancel
       padding: '18px 20px', boxShadow: '0 1px 6px rgba(0,0,0,0.04)',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
           <div style={{
             width: 42, height: 42, borderRadius: 12, background: '#FFE27C',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -270,7 +270,7 @@ function MemberCard({ member, confirmDelete, onDelete, onConfirmDelete, onCancel
             {member.name.charAt(0).toUpperCase()}
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: '#2d2d2d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.name}</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#2d2d2d', wordBreak: 'break-word' }}>{member.name}</div>
             <div style={{ fontSize: 12, color: '#C9B6A1' }}>{member.phone}</div>
             {member.email && <div style={{ fontSize: 12, color: '#C9B6A1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.email}</div>}
           </div>

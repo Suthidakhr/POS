@@ -298,7 +298,7 @@ Four tables are created automatically:
 | `menu_items` | All menu items (seeded with 26 items on first run) |
 | `members` | Registered members and their lifetime stats |
 | `orders` | Order header — totals, payment method, status, timestamps |
-| `order_items` | Line items — stores a price/name snapshot at order time |
+ | `order_items` | Line items — stores a price/name snapshot at order time |
 | `staff` | Staff accounts — name, bcrypt PIN hash, role, active flag |
 
 Relationships:
